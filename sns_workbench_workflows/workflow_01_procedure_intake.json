@@ -1,0 +1,83 @@
+{
+  "workflow_id": "SR-WF-01-INTAKE",
+  "name": "Procedure Ingestion & Intake Workflow",
+  "description": "Validates incoming surgical patient demographics, billing codes, and 3D imaging metadata, then publishes the PROCEDURE_REGISTERED event to downstream AI and inventory workflows.",
+  "version": "1.0.0",
+  "category": "Healthcare Surgical Intake",
+  "triggers": [
+    {
+      "id": "trig_webhook_intake",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/procedure-intake",
+      "method": "POST",
+      "parameters": {
+        "patientId": "string",
+        "hospitalId": "string",
+        "procedureName": "string",
+        "procedureCode": "string",
+        "procedureType": "string",
+        "manufacturer": "string",
+        "scheduledDate": "string",
+        "leadSurgeon": "string",
+        "scanPackage": "object"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_validate_hipaa",
+      "name": "HIPAA & Demographic Validator",
+      "type": "validator",
+      "config": {
+        "rules": [
+          { "field": "patientId", "rule": "required|regex:^PT-[0-9]{4,6}$" },
+          { "field": "hospitalId", "rule": "required|regex:^[A-Z0-9-]+$" },
+          { "field": "procedureCode", "rule": "required" }
+        ],
+        "mask_pii": false
+      },
+      "next": "node_dicom_preprocessor"
+    },
+    {
+      "id": "node_dicom_preprocessor",
+      "name": "3D Scan Series Preprocessor",
+      "type": "agent_action",
+      "config": {
+        "handler": "extract_dicom_metadata",
+        "supported_modalities": ["CT", "MRI", "3D_RECON"],
+        "default_slices": 512,
+        "default_thickness": 0.625
+      },
+      "next": "node_publish_event"
+    },
+    {
+      "id": "node_publish_event",
+      "name": "Publish PROCEDURE_REGISTERED Event",
+      "type": "event_emitter",
+      "config": {
+        "event_name": "PROCEDURE_REGISTERED",
+        "targets": [
+          "SR-WF-02-AI-WORKBENCH",
+          "SR-WF-04-INVENTORY"
+        ]
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "listens_to": [],
+    "emits_to": [
+      {
+        "event": "PROCEDURE_REGISTERED",
+        "target_workflow": "SR-WF-02-AI-WORKBENCH",
+        "purpose": "Triggers automated 3D landmark segmentation, cutting angle determination, and implant sizing."
+      },
+      {
+        "event": "PROCEDURE_REGISTERED",
+        "target_workflow": "SR-WF-04-INVENTORY",
+        "purpose": "Triggers preliminary inventory stock query for manufacturer tray availability."
+      }
+    ]
+  }
+}
+

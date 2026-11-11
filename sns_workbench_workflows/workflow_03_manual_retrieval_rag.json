@@ -1,0 +1,84 @@
+{
+  "workflow_id": "SR-WF-03-MANUAL-RAG",
+  "name": "Surgical Manual Retrieval & RAG Workflow",
+  "description": "Indexes and performs semantic vector searches over manufacturer-verified surgical technique guides and IFUs, returning precise step-by-step instructions, page citations, and autoclaving parameters.",
+  "version": "1.0.0",
+  "category": "RAG Knowledge Base",
+  "triggers": [
+    {
+      "id": "trig_subworkflow_call",
+      "type": "sub_workflow_trigger",
+      "parameters": {
+        "manufacturer": "string",
+        "procedureType": "string",
+        "queryTopic": "string"
+      }
+    },
+    {
+      "id": "trig_direct_manual_search",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/manuals/query",
+      "method": "POST"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_embed_query",
+      "name": "Query Vector Embedding",
+      "type": "embedding_node",
+      "config": {
+        "embedding_model": "text-embedding-004",
+        "dimensions": 768
+      },
+      "next": "node_vector_search"
+    },
+    {
+      "id": "node_vector_search",
+      "name": "Vector Store Search (OEM Manuals)",
+      "type": "knowledge_retriever",
+      "config": {
+        "vector_store": "SurgReady_Manuals_Index",
+        "top_k": 3,
+        "filter": {
+          "manufacturer": "{{input.manufacturer}}"
+        }
+      },
+      "next": "node_citation_synthesizer"
+    },
+    {
+      "id": "node_citation_synthesizer",
+      "name": "Citation & Protocol Synthesizer Agent",
+      "type": "llm_agent",
+      "config": {
+        "model": "gemini-1.5-flash",
+        "system_prompt": "You are the Surgical Document Specialist. Extract the exact page numbers, section titles, clinical warning notes, and autoclave sterilization cycles from the retrieved OEM manuals. Return clean JSON with verified citations.",
+        "temperature": 0.0
+      },
+      "next": "node_return_citations"
+    },
+    {
+      "id": "node_return_citations",
+      "name": "Return Verified Citations",
+      "type": "response_emitter",
+      "config": {
+        "format": "JSON_MANUAL_CITATIONS"
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "invoked_by": [
+      {
+        "source_workflow": "SR-WF-02-AI-WORKBENCH",
+        "purpose": "Provides verified surgical protocol steps and torque specs during anatomical analysis."
+      }
+    ],
+    "returns_to": [
+      {
+        "target_workflow": "SR-WF-02-AI-WORKBENCH",
+        "data": "Citations array with page references, caution notes, and sterilization standards."
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,114 @@
+{
+  "workflow_id": "SR-WF-05-CHECKLIST",
+  "name": "Surgical Checklist & Verification Workflow",
+  "description": "Synthesizes AI sizing plans and reserved inventory into an active 5-section checklist, performs RFID barcode reconciliation, validates dual electronic clinical sign-offs, and emits PROCEDURE_CLEARED_FOR_OR.",
+  "version": "1.0.0",
+  "category": "Patient Safety & Compliance",
+  "triggers": [
+    {
+      "id": "trig_ai_plan_event",
+      "type": "event_listener",
+      "source_event": "AI_PLAN_RECOMMENDED",
+      "source_workflow": "SR-WF-02-AI-WORKBENCH"
+    },
+    {
+      "id": "trig_inventory_reserved_event",
+      "type": "event_listener",
+      "source_event": "INVENTORY_RESERVED",
+      "source_workflow": "SR-WF-04-INVENTORY"
+    },
+    {
+      "id": "trig_direct_signoff_api",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/checklist/signoff",
+      "method": "POST"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_checklist_assembler",
+      "name": "5-Section Checklist Assembler Agent",
+      "type": "agent_action",
+      "config": {
+        "sections": [
+          "Required Instruments",
+          "Implant Checklist",
+          "Sterilization Requirements",
+          "Tool Tray Requirements",
+          "Inventory & Barcode Verification"
+        ]
+      },
+      "next": "node_rfid_verifier"
+    },
+    {
+      "id": "node_rfid_verifier",
+      "name": "RFID & Barcode Matcher Tool",
+      "type": "tool_action",
+      "config": {
+        "tool": "verify_rfid_scans_against_plan",
+        "tolerance": "STRICT_MATCH"
+      },
+      "next": "node_dual_signoff_checker"
+    },
+    {
+      "id": "node_dual_signoff_checker",
+      "name": "Dual Clinical Electronic Sign-Off Evaluator",
+      "type": "conditional_router",
+      "config": {
+        "conditions": [
+          {
+            "condition": "signOff.surgeonSigned == true && signOff.nurseSigned == true",
+            "target": "node_emit_cleared_event"
+          },
+          {
+            "condition": "signOff.surgeonSigned == false || signOff.nurseSigned == false",
+            "target": "node_await_signatures"
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_await_signatures",
+      "name": "Awaiting Clinical Signatures State",
+      "type": "state_holder",
+      "config": {
+        "status": "PENDING_CLINICAL_SIGN_OFF"
+      },
+      "next": null
+    },
+    {
+      "id": "node_emit_cleared_event",
+      "name": "Publish PROCEDURE_CLEARED_FOR_OR Event",
+      "type": "event_emitter",
+      "config": {
+        "event_name": "PROCEDURE_CLEARED_FOR_OR",
+        "targets": [
+          "SR-WF-06-REPORTS"
+        ]
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "listens_to": [
+      {
+        "event": "AI_PLAN_RECOMMENDED",
+        "source_workflow": "SR-WF-02-AI-WORKBENCH",
+        "purpose": "Receives specific component sizing and cutting block specs."
+      },
+      {
+        "event": "INVENTORY_RESERVED",
+        "source_workflow": "SR-WF-04-INVENTORY",
+        "purpose": "Receives physical item locations, lot numbers, and sterilizer verification records."
+      }
+    ],
+    "emits_to": [
+      {
+        "event": "PROCEDURE_CLEARED_FOR_OR",
+        "target_workflow": "SR-WF-06-REPORTS",
+        "purpose": "Finalizes the procedural record, commits audit trail, and computes prep turnaround time."
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,74 @@
+{
+  "workflow_id": "SR-WF-06-REPORTS",
+  "name": "Analytics & Quality Audit Reporting Workflow",
+  "description": "Aggregates end-to-end procedural telemetry, computes turnaround efficiency, records tamper-evident audit trails, and generates certified executive safety reports.",
+  "version": "1.0.0",
+  "category": "Governance & Analytics",
+  "triggers": [
+    {
+      "id": "trig_cleared_event",
+      "type": "event_listener",
+      "source_event": "PROCEDURE_CLEARED_FOR_OR",
+      "source_workflow": "SR-WF-05-CHECKLIST"
+    },
+    {
+      "id": "trig_shortage_event",
+      "type": "event_listener",
+      "source_event": "INVENTORY_SHORTAGE_DETECTED",
+      "source_workflow": "SR-WF-04-INVENTORY"
+    },
+    {
+      "id": "trig_direct_report_api",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/reports/generate",
+      "method": "POST"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_compute_metrics",
+      "name": "Surgical Readiness Metrics Engine",
+      "type": "tool_action",
+      "config": {
+        "tool": "compute_turnaround_and_compliance",
+        "benchmark_prep_time_minutes": 35.0
+      },
+      "next": "node_audit_ledger_commit"
+    },
+    {
+      "id": "node_audit_ledger_commit",
+      "name": "HIPAA & Joint Commission Audit Ledger",
+      "type": "database_writer",
+      "config": {
+        "table": "or_readiness_audit_logs",
+        "hash_verification": "SHA-256"
+      },
+      "next": "node_generate_certified_report"
+    },
+    {
+      "id": "node_generate_certified_report",
+      "name": "Certified Quality Report Generator",
+      "type": "agent_action",
+      "config": {
+        "formats": ["PDF", "CSV", "HL7_FHIR_JSON"],
+        "export_channel": "hospital_document_archive"
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "listens_to": [
+      {
+        "event": "PROCEDURE_CLEARED_FOR_OR",
+        "source_workflow": "SR-WF-05-CHECKLIST",
+        "purpose": "Logs successful surgical preparation completion and records sign-off stamps."
+      },
+      {
+        "event": "INVENTORY_SHORTAGE_DETECTED",
+        "source_workflow": "SR-WF-04-INVENTORY",
+        "purpose": "Logs supply chain friction metrics for hospital materials management."
+      }
+    ],
+    "emits_to": []
+  }
+}

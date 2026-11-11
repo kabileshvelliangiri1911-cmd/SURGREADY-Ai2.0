@@ -1,0 +1,119 @@
+{
+  "workflow_id": "SR-WF-04-INVENTORY",
+  "name": "OR Inventory & Tray Allocation Workflow",
+  "description": "Monitors sterile instrument trays and implant availability in real time, reserves items for active cases, detects low-stock conditions, and emits reservation data to the checklist workflow.",
+  "version": "1.0.0",
+  "category": "Supply Chain & Materials",
+  "triggers": [
+    {
+      "id": "trig_intake_event",
+      "type": "event_listener",
+      "source_event": "PROCEDURE_REGISTERED",
+      "source_workflow": "SR-WF-01-INTAKE"
+    },
+    {
+      "id": "trig_sizing_subworkflow",
+      "type": "sub_workflow_trigger",
+      "parameters": {
+        "primaryFemoralSKU": "string",
+        "primaryTibialSKU": "string",
+        "standbyBackupSKUs": "array"
+      }
+    },
+    {
+      "id": "trig_direct_inventory_api",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/inventory/check-and-reserve",
+      "method": "POST"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_query_db_stock",
+      "name": "Query Depot & Core Storage Stock",
+      "type": "tool_action",
+      "config": {
+        "tool": "hospital_materials_db_lookup",
+        "locations": ["OR Central Depot", "OR Clean Core", "Autoclave Room"]
+      },
+      "next": "node_check_thresholds"
+    },
+    {
+      "id": "node_check_thresholds",
+      "name": "Safety Buffer & Shortage Evaluator",
+      "type": "conditional_router",
+      "config": {
+        "conditions": [
+          {
+            "condition": "item.availableQty < item.requiredQty",
+            "target": "node_trigger_restock_alert"
+          },
+          {
+            "condition": "item.availableQty >= item.requiredQty",
+            "target": "node_reserve_allocation_lock"
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_trigger_restock_alert",
+      "name": "Trigger Low Stock Notification",
+      "type": "event_emitter",
+      "config": {
+        "event_name": "INVENTORY_SHORTAGE_DETECTED",
+        "channels": ["central_sterile_slack", "hospital_erp_webhook"],
+        "severity": "WARNING"
+      },
+      "next": "node_reserve_allocation_lock"
+    },
+    {
+      "id": "node_reserve_allocation_lock",
+      "name": "Lock Implants & Record Lots",
+      "type": "tool_action",
+      "config": {
+        "tool": "reserve_implants_by_lot",
+        "lock_duration_hours": 72
+      },
+      "next": "node_publish_inventory_event"
+    },
+    {
+      "id": "node_publish_inventory_event",
+      "name": "Publish INVENTORY_RESERVED Event",
+      "type": "event_emitter",
+      "config": {
+        "event_name": "INVENTORY_RESERVED",
+        "targets": [
+          "SR-WF-05-CHECKLIST"
+        ]
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "listens_to": [
+      {
+        "event": "PROCEDURE_REGISTERED",
+        "source_workflow": "SR-WF-01-INTAKE",
+        "purpose": "Prepares trays for scheduled operating suite date."
+      }
+    ],
+    "invoked_by": [
+      {
+        "source_workflow": "SR-WF-02-AI-WORKBENCH",
+        "purpose": "Validates exact sizes selected by AI sizing engine."
+      }
+    ],
+    "emits_to": [
+      {
+        "event": "INVENTORY_RESERVED",
+        "target_workflow": "SR-WF-05-CHECKLIST",
+        "purpose": "Populates checklist with lot numbers, locations, and sterility expiration dates."
+      },
+      {
+        "event": "INVENTORY_SHORTAGE_DETECTED",
+        "target_workflow": "SR-WF-06-REPORTS",
+        "purpose": "Logs supply chain bottleneck event in quality telemetry."
+      }
+    ]
+  }
+}

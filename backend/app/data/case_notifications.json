@@ -1,0 +1,100 @@
+[
+  {
+    "id": "ALT-INV-1003-20261111064531",
+    "hospital_id": "HOSP-STJUDE-01",
+    "recipient_role": "management",
+    "case_id": "SR-2026-0844",
+    "notification_type": "INVENTORY_LOW_STOCK",
+    "title": "Implant Stock Alert: Triathlon X3 Polyethylene Articular Insert - 11mm (Size 4/5)",
+    "message": "Low stock detected for Triathlon X3 Polyethylene Articular Insert - 11mm (Size 4/5). Available quantity: 1 Units. Minimum stock level: 3. Scheduled for case SR-2026-0844.",
+    "priority": "High",
+    "metadata": {
+      "item_id": "INV-1003",
+      "implant_name": "Triathlon X3 Polyethylene Articular Insert - 11mm (Size 4/5)",
+      "manufacturer": "Stryker",
+      "available_stock": 1,
+      "minimum_stock_level": 3,
+      "stock_status": "Low Stock"
+    },
+    "is_read": false,
+    "created_at": "2026-11-11T06:45:31.077309"
+  },
+  {
+    "id": "ALT-INV-1008-20261111064531",
+    "hospital_id": "HOSP-STJUDE-01",
+    "recipient_role": "management",
+    "case_id": "SR-2026-0844",
+    "notification_type": "INVENTORY_LOW_STOCK",
+    "title": "Implant Stock Alert: Persona The Personalized Knee System - Femoral Size 5 Standard",
+    "message": "Low stock detected for Persona The Personalized Knee System - Femoral Size 5 Standard. Available quantity: 2 Units. Minimum stock level: 2. Scheduled for case SR-2026-0844.",
+    "priority": "High",
+    "metadata": {
+      "item_id": "INV-1008",
+      "implant_name": "Persona The Personalized Knee System - Femoral Size 5 Standard",
+      "manufacturer": "Zimmer Biomet",
+      "available_stock": 2,
+      "minimum_stock_level": 2,
+      "stock_status": "Low Stock"
+    },
+    "is_read": false,
+    "created_at": "2026-11-11T06:45:31.077360"
+  },
+  {
+    "id": "ALT-INV-1014-20261111064531",
+    "hospital_id": "HOSP-STJUDE-01",
+    "recipient_role": "management",
+    "case_id": "SR-2026-0844",
+    "notification_type": "INVENTORY_OUT_OF_STOCK",
+    "title": "Implant Out of Stock: ATTUNE Primary Femoral Component - Left Size 5 Narrow",
+    "message": "ATTUNE Primary Femoral Component - Left Size 5 Narrow currently has no available stock. Please review the inventory and coordinate with the responsible team for case SR-2026-0844.",
+    "priority": "Critical",
+    "metadata": {
+      "item_id": "INV-1014",
+      "implant_name": "ATTUNE Primary Femoral Component - Left Size 5 Narrow",
+      "manufacturer": "DePuy Synthes",
+      "available_stock": 0,
+      "minimum_stock_level": 2,
+      "stock_status": "Out of Stock"
+    },
+    "is_read": false,
+    "created_at": "2026-11-11T06:45:31.077408"
+  },
+  {
+    "id": "NOTIF-SURG-SR-2026-0844-20261111064531",
+    "hospital_id": "HOSP-STJUDE-01",
+    "recipient_role": "doctor",
+    "recipient_name": "Dr. Sarah Jenkins",
+    "case_id": "SR-2026-0844",
+    "notification_type": "SURGEON_REVIEW_REQUIRED",
+    "title": "Surgeon Review Required: Case SR-2026-0844",
+    "message": "Pre-operative case registered for Marcus Aurelius (MRN: PT-99412). Procedure: Total Knee Arthroplasty (TKA) scheduled for 2026-11-18 at 08:15 AM. AI implant comparison ready: 2 Exact Matches found.",
+    "priority": "High",
+    "metadata": {
+      "mrn": "PT-99412",
+      "procedure_name": "Total Knee Arthroplasty (TKA)",
+      "surgery_date": "2026-11-18",
+      "candidate_count": 5,
+      "review_status": "Pending"
+    },
+    "is_read": false,
+    "created_at": "2026-11-11T06:45:31.077585"
+  },
+  {
+    "id": "NOTIF-REV-SR-2026-0844-20261111064652",
+    "hospital_id": "HOSP-STJUDE-01",
+    "recipient_role": "management",
+    "recipient_name": "Hospital Management",
+    "case_id": "SR-2026-0844",
+    "notification_type": "SURGEON_REVIEW_COMPLETED",
+    "title": "Surgeon Review Approved: Case SR-2026-0844",
+    "message": "Dr. Sarah Jenkins has completed clinical review for case SR-2026-0844 (Total Knee Arthroplasty (TKA)). Decision: Approved. Comments: 'Verified Triathlon CR Femoral Size 5 and Tibial #4 against coronal scan templating. Good bone cut margins.'.",
+    "priority": "Normal",
+    "metadata": {
+      "case_id": "SR-2026-0844",
+      "surgeon": "Dr. Sarah Jenkins",
+      "decision": "Approved"
+    },
+    "is_read": false,
+    "created_at": "2026-11-11T06:46:52.179887"
+  }
+]

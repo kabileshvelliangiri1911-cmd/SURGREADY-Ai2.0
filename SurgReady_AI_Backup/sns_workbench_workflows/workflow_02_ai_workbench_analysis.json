@@ -1,0 +1,124 @@
+{
+  "workflow_id": "SR-WF-02-AI-WORKBENCH",
+  "name": "AI Anatomical Analysis & Sizing Workflow",
+  "description": "Processes 3D scan data, runs biomechanical landmark detection (Whiteside line, TEA, mechanical axis), queries manual knowledge via RAG (Workflow 3), checks stock in Workflow 4, and emits AI_PLAN_RECOMMENDED to Workflow 5.",
+  "version": "1.0.0",
+  "category": "AI Biomechanical Engine",
+  "triggers": [
+    {
+      "id": "trig_event_proc_reg",
+      "type": "event_listener",
+      "source_event": "PROCEDURE_REGISTERED",
+      "source_workflow": "SR-WF-01-INTAKE"
+    },
+    {
+      "id": "trig_direct_api",
+      "type": "webhook",
+      "endpoint": "/api/v1/workflows/ai-workbench/analyze",
+      "method": "POST"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_landmark_detection",
+      "name": "3D Anatomical Landmark & Axis Detector",
+      "type": "agent_action",
+      "config": {
+        "engine": "SurgReady-v2.4-Ortho",
+        "precision_mm": 0.4,
+        "calculate_axes": ["Mechanical Axis", "Transepicondylar Axis (TEA)", "Whiteside's Line"]
+      },
+      "next": "node_sizing_optimizer"
+    },
+    {
+      "id": "node_sizing_optimizer",
+      "name": "Biomechanical Implant Sizing Agent",
+      "type": "llm_agent",
+      "config": {
+        "model": "gemini-1.5-pro",
+        "system_prompt": "You are the SurgReady AI Sizing Specialist. Analyze patient deformity, bone stock, and joint kinematics to determine primary femoral, tibial, or spinal component sizes and required resection angles. Never hallucinate sizes; adhere to approved manufacturer catalogs.",
+        "temperature": 0.1
+      },
+      "next": "node_query_manual_workflow"
+    },
+    {
+      "id": "node_query_manual_workflow",
+      "name": "Invoke Manual RAG Workflow (Workflow 3)",
+      "type": "sub_workflow_call",
+      "config": {
+        "target_workflow": "SR-WF-03-MANUAL-RAG",
+        "call_mode": "sync_await",
+        "pass_parameters": {
+          "manufacturer": "{{input.manufacturer}}",
+          "procedureType": "{{input.procedureType}}",
+          "deformityAngle": "{{sizing_results.varusAngle}}",
+          "queryTopic": "Distal resection bushing selection and cutting block alignment"
+        }
+      },
+      "next": "node_query_inventory_workflow"
+    },
+    {
+      "id": "node_query_inventory_workflow",
+      "name": "Check Component Stock (Workflow 4)",
+      "type": "sub_workflow_call",
+      "config": {
+        "target_workflow": "SR-WF-04-INVENTORY",
+        "call_mode": "sync_await",
+        "pass_parameters": {
+          "primaryFemoralSKU": "{{sizing_results.femoralSKU}}",
+          "primaryTibialSKU": "{{sizing_results.tibialSKU}}",
+          "standbyBackupSKUs": ["{{sizing_results.backupFemoralSKU}}", "{{sizing_results.backupInsertSKU}}"]
+        }
+      },
+      "next": "node_compile_plan"
+    },
+    {
+      "id": "node_compile_plan",
+      "name": "Compile Preoperative Plan & Safety Attestation",
+      "type": "agent_action",
+      "config": {
+        "include_safety_disclaimer": true,
+        "format": "JSON_SURGREADY_PLAN"
+      },
+      "next": "node_publish_plan_event"
+    },
+    {
+      "id": "node_publish_plan_event",
+      "name": "Publish AI_PLAN_RECOMMENDED Event",
+      "type": "event_emitter",
+      "config": {
+        "event_name": "AI_PLAN_RECOMMENDED",
+        "targets": [
+          "SR-WF-05-CHECKLIST"
+        ]
+      },
+      "next": null
+    }
+  ],
+  "inter_workflow_interactions": {
+    "listens_to": [
+      {
+        "event": "PROCEDURE_REGISTERED",
+        "source_workflow": "SR-WF-01-INTAKE",
+        "purpose": "Initiates scan processing immediately after patient intake."
+      }
+    ],
+    "calls": [
+      {
+        "target_workflow": "SR-WF-03-MANUAL-RAG",
+        "purpose": "Fetches exact OEM manual surgical technique excerpts, precautions, and torque specs."
+      },
+      {
+        "target_workflow": "SR-WF-04-INVENTORY",
+        "purpose": "Verifies physical availability of recommended sizes in hospital OR clean core."
+      }
+    ],
+    "emits_to": [
+      {
+        "event": "AI_PLAN_RECOMMENDED",
+        "target_workflow": "SR-WF-05-CHECKLIST",
+        "purpose": "Populates the surgical checklist with exact component sizes, instrument trays, and sterilizer params."
+      }
+    ]
+  }
+}

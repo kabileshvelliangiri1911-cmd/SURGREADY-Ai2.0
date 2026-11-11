@@ -478,7 +478,8 @@ export const RecentProceduresTable = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             )}

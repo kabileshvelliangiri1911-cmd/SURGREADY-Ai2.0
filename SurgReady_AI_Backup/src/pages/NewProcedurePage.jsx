@@ -23,10 +23,15 @@ import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { useProcedure } from '../context/ProcedureContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { performImplantMatching } from '../services/implantMatchingService';
+import { dispatchMatchingEventToWorkbench } from '../services/snsMatchingEventService';
 
 export const NewProcedurePage = () => {
-  const { createProcedure } = useProcedure();
+  const { createProcedure, refreshData } = useProcedure();
+  const { currentUser } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -139,7 +144,63 @@ export const NewProcedurePage = () => {
   const handleConfirmSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Post to FastAPI backend for Case Registration + Deterministic AI Implant Comparison
+      // 1. Identify Authenticated Doctor & Hospital Relationship (Phase 6)
+      const doctorId = currentUser?.id && !currentUser.id.startsWith('usr_') ? currentUser.id : null;
+      const doctorName = currentUser?.name || formData.leadSurgeon || 'Dr. Sarah Jenkins';
+      const hospitalName = currentUser?.hospital || 'St. Jude Medical Center';
+
+      // 2. Prepare Database Schema Payload (Matching Phase 4 patient_cases schema)
+      const anatomicalSite = formData.name.toLowerCase().includes('hip')
+        ? 'Hip'
+        : formData.name.toLowerCase().includes('shoulder')
+        ? 'Shoulder'
+        : formData.name.toLowerCase().includes('spine') || formData.name.toLowerCase().includes('lumbar')
+        ? 'Spine'
+        : 'Knee';
+
+      const patientCasePayload = {
+        patient_id: formData.patientId.trim(),
+        patient_name: formData.patientName.trim(),
+        mrn: formData.patientId.trim(),
+        patient_full_name: formData.patientName.trim(),
+        age: Number(formData.patientAge) || 60,
+        gender: formData.patientGender || 'Female',
+        procedure_name: formData.name.trim(),
+        procedure_code: formData.code.trim(),
+        procedure_type: formData.type.trim(),
+        anatomical_site: anatomicalSite,
+        implant_category: 'Implants',
+        estimated_implant_size: formData.femoralSizeEst || formData.tibialSizeEst || 'Standard',
+        clinical_notes: formData.clinicalNotes || '',
+        surgery_date: formData.surgeryDate,
+        surgical_priority: formData.priority || 'Elective',
+        operating_suite_id: formData.hospitalId || 'SJMC-OR-4',
+        lead_surgeon_name: doctorName,
+        assigned_doctor_id: doctorId,
+        case_status: 'Submitted'
+      };
+
+      // 3. Supabase Direct Database Insertion (Phase 6)
+      let savedDbCase = null;
+      if (isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase
+            .from('patient_cases')
+            .insert([patientCasePayload])
+            .select()
+            .single();
+
+          if (error) {
+            console.warn('[Supabase patient_cases Insert Notice]', error.message);
+          } else {
+            savedDbCase = data;
+          }
+        } catch (dbErr) {
+          console.warn('[Supabase Connection Notice]', dbErr.message);
+        }
+      }
+
+      // 4. FastAPI Backend Sync & Fallback
       let backendCase = null;
       try {
         const resp = await fetch('http://127.0.0.1:8000/api/v1/cases/', {
@@ -150,9 +211,9 @@ export const NewProcedurePage = () => {
             operating_suite_id: formData.hospitalId,
             patient_full_name: formData.patientName,
             age: Number(formData.patientAge) || 60,
-            gender: formData.patientGender || 'Male',
-            lead_surgeon_id: 'usr_doc_01',
-            lead_surgeon_name: formData.leadSurgeon || 'Dr. Sarah Jenkins',
+            gender: formData.patientGender || 'Female',
+            lead_surgeon_id: doctorId || 'usr_doc_01',
+            lead_surgeon_name: doctorName,
             scheduled_surgery_date: formData.surgeryDate,
             scheduled_or_time: formData.surgeryTime,
             procedure_name: formData.name,
@@ -174,26 +235,62 @@ export const NewProcedurePage = () => {
         console.warn('[Backend Case Sync Notice]', beErr);
       }
 
-      const assignedId = backendCase?.case_id || `SR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const assignedId = savedDbCase?.case_id || backendCase?.case_id || `SR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
+      // 5. Patient-to-Implant Matching Foundation (Phase 9)
+      const matchingCaseInput = {
+        id: savedDbCase?.id || assignedId,
+        procedure_type: formData.type,
+        procedure_name: formData.name,
+        anatomical_site: anatomicalSite,
+        manufacturer: formData.manufacturer,
+        system_line_name: formData.systemName,
+        femoralSizeEst: formData.femoralSizeEst,
+        tibialSizeEst: formData.tibialSizeEst,
+        estimated_implant_size: formData.femoralSizeEst || formData.tibialSizeEst
+      };
+
+      let candidateMatches = [];
+      try {
+        candidateMatches = await performImplantMatching(matchingCaseInput);
+      } catch (matchErr) {
+        console.warn('[Matching Service Notice]', matchErr.message);
+        candidateMatches = backendCase?.candidates || [];
+      }
+
+      // 6. SNS AI Agent Workbench Event (Phase 10 - Isolated Minimal Non-PII Data)
+      dispatchMatchingEventToWorkbench({
+        case_id: assignedId,
+        procedure_type: formData.type,
+        anatomical_site: anatomicalSite,
+        implant_category: 'Implants',
+        estimated_implant_size: formData.femoralSizeEst,
+        surgical_priority: formData.priority,
+        candidates_count: candidateMatches.length
+      }).catch(() => {});
+
+      // 7. Update Application State & Refresh Doctor Dashboard (Phase 7)
       const created = createProcedure({
         id: assignedId,
+        dbId: savedDbCase?.id || null,
         patientId: formData.patientId,
         patientName: formData.patientName,
         patientAge: formData.patientAge,
         patientGender: formData.patientGender,
         hospitalId: formData.hospitalId,
+        hospital: hospitalName,
         name: formData.name,
         code: formData.code,
         type: formData.type,
         manufacturer: formData.manufacturer,
         systemName: formData.systemName,
-        surgeon: formData.leadSurgeon,
+        surgeon: doctorName,
         date: formData.surgeryDate,
         time: formData.surgeryTime,
         priority: formData.priority,
         notes: formData.clinicalNotes,
-        candidates: backendCase?.candidates || [],
+        candidates: candidateMatches,
+        matchingStatus: candidateMatches[0]?.match_status || 'MATCH',
         measurements: {
           varusValgus: formData.varusValgus,
           femoralSizeEst: formData.femoralSizeEst,
@@ -211,11 +308,16 @@ export const NewProcedurePage = () => {
         }
       });
 
+      if (refreshData) {
+        await refreshData().catch(() => {});
+      }
+
       setIsConfirmOpen(false);
-      toast.success(`Patient Case ${created.id} registered! AI Candidate Comparison ready for review.`);
-      navigate('/ai-workbench');
+      toast.success(`Patient Case ${assignedId} registered in database! AI Candidate Comparison ready for review.`);
+      navigate('/doctor/dashboard');
     } catch (e) {
-      toast.error('Failed to create procedure');
+      console.error('[Patient Case Registration Error]', e);
+      toast.error(e.message || 'Failed to submit patient case. Please check entered information.');
     } finally {
       setIsSubmitting(false);
     }

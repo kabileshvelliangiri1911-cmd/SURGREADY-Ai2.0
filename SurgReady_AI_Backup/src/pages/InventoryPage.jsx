@@ -449,9 +449,31 @@ export const InventoryPage = () => {
                             {item.item_id || item.id}
                           </td>
 
-                          {/* 2. Item Name */}
-                          <td className="py-3 px-3 font-bold text-brand-navy max-w-xs">
-                            {item.name}
+                          {/* 2. Item Name & Verified Clinical Implant Attributes (Phase 8) */}
+                          <td className="py-3 px-3 max-w-xs">
+                            <div className="font-bold text-brand-navy text-xs leading-snug">
+                              {item.name}
+                            </div>
+                            {(item.anatomical_site || item.material || item.available_sizes || item.compatibility_doc) && (
+                              <div className="text-[10px] text-slate-500 mt-0.5 space-y-0.5">
+                                {item.anatomical_site && (
+                                  <span className="inline-block text-slate-600 mr-2 font-medium">
+                                    Site: <strong className="text-slate-700">{item.anatomical_site}</strong>
+                                    {item.material ? ` • ${item.material}` : ''}
+                                  </span>
+                                )}
+                                {item.available_sizes && (
+                                  <div className="text-slate-500 font-mono text-[9px] truncate">
+                                    Sizes: {item.available_sizes}
+                                  </div>
+                                )}
+                                {item.compatibility_doc && (
+                                  <div className="text-blue-600/90 text-[9px] truncate" title={item.compatibility_doc}>
+                                    Ref: {item.compatibility_doc}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </td>
 
                           {/* 3. Category */}

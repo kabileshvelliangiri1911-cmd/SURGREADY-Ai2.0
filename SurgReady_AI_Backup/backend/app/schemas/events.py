@@ -94,3 +94,23 @@ class AuthWebhookEventResponse(BaseModel):
         description="Round-trip execution time in milliseconds"
     )
     timestamp: str
+
+class MatchingAnalysisEventRequest(BaseModel):
+    event_type: str = "PATIENT_IMPLANT_MATCHING_ANALYSIS"
+    case_id: str
+    procedure_type: str
+    anatomical_site: str
+    implant_category: str = "Implants"
+    estimated_size: Optional[str] = None
+    surgical_priority: str = "Elective"
+    candidates_count: int = 0
+    timestamp: Optional[str] = None
+    status: str = "COMPLETED_RULE_BASED"
+
+class MatchingAnalysisEventResponse(BaseModel):
+    success: bool
+    status: str  # 'dispatched' | 'pending_configuration'
+    message: str
+    case_id: str
+    timestamp: str
+

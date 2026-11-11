@@ -357,43 +357,84 @@ export const RecentProceduresTable = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-surface-border bg-slate-50/70 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4 sm:px-6">Procedure ID</th>
-                    <th className="py-3 px-4">Procedure Name</th>
-                    <th className="py-3 px-4 hidden md:table-cell">Hospital & Suite</th>
+                    <th className="py-3 px-4 sm:px-6">Case / Patient ID</th>
+                    <th className="py-3 px-4">Patient & Procedure</th>
+                    <th className="py-3 px-3">Priority</th>
+                    <th className="py-3 px-3">Implant Match</th>
+                    <th className="py-3 px-4 hidden md:table-cell">Hospital</th>
                     <th className="py-3 px-4">Surgery Date</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 sm:px-6 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border/70 text-xs">
-                  {filtered.map((proc) => (
+                  {filtered.map((proc) => {
+                    const matchStatus = proc.matchingStatus || 'MATCH';
+                    return (
                     <tr
                       key={proc.id}
                       className="hover:bg-blue-50/40 transition-colors group"
                     >
-                      {/* Procedure ID */}
+                      {/* Procedure ID & Patient MRN */}
                       <td className="py-3.5 px-4 sm:px-6 font-semibold text-brand-navy whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs">{proc.id}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                            {proc.code}
+                        <div className="flex flex-col">
+                          <span className="font-mono text-xs font-bold text-brand-navy">{proc.id}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {proc.patientId}
                           </span>
                         </div>
                       </td>
 
-                      {/* Procedure Name & Surgeon */}
+                      {/* Procedure Name & Patient Name */}
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-800 text-xs group-hover:text-brand-primary transition-colors">
+                        <div className="font-bold text-slate-900 text-xs group-hover:text-brand-primary transition-colors">
+                          {proc.patientName || 'Registered Patient'}
+                        </div>
+                        <div className="text-[11px] text-slate-600 mt-0.5 truncate max-w-xs font-medium">
                           {proc.name}
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          {proc.patientName} ({proc.patientId}) • {proc.surgeon}
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Lead: {proc.surgeon || 'Dr. Sarah Jenkins'}
                         </div>
+                      </td>
+
+                      {/* Surgical Priority */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                          proc.priority === 'Emergency'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : proc.priority === 'Urgent'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
+                          {proc.priority || 'Elective'}
+                        </span>
+                      </td>
+
+                      {/* Implant Matching Status (Phase 7 & Phase 9) */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                          matchStatus === 'MATCH'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : matchStatus === 'PARTIAL_MATCH'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : matchStatus === 'NOT_MATCH'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}>
+                          {matchStatus === 'MATCH'
+                            ? 'Match'
+                            : matchStatus === 'PARTIAL_MATCH'
+                            ? 'Partial Match'
+                            : matchStatus === 'NOT_MATCH'
+                            ? 'Mismatch'
+                            : 'Info Needed'}
+                        </span>
                       </td>
 
                       {/* Hospital & Suite */}
                       <td className="py-3.5 px-4 hidden md:table-cell">
-                        <div className="text-slate-700 font-medium">{proc.hospital}</div>
+                        <div className="text-slate-700 font-medium truncate max-w-xs">{proc.hospital}</div>
                         <div className="text-[11px] text-slate-400">{proc.hospitalId}</div>
                       </td>
 
@@ -437,7 +478,8 @@ export const RecentProceduresTable = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             )}

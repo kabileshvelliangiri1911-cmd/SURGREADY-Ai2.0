@@ -1,11 +1,42 @@
 import logging
 from fastapi import APIRouter, status
-from app.schemas.events import AuthWebhookEventRequest, AuthWebhookEventResponse
+from app.schemas.events import (
+    AuthWebhookEventRequest,
+    AuthWebhookEventResponse,
+    MatchingAnalysisEventRequest,
+    MatchingAnalysisEventResponse,
+)
 from app.services.sns_auth_webhook_service import sns_auth_webhook_service
+from datetime import datetime
 
 logger = logging.getLogger("surgready.events_endpoint")
 
 router = APIRouter()
+
+@router.post(
+    "/matching-analysis",
+    response_model=MatchingAnalysisEventResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Record Patient Case Matching Analysis Event (Phase 10 Minimal Non-PII Data)"
+)
+async def record_matching_event(request: MatchingAnalysisEventRequest):
+    """
+    Separate, isolated integration point for clinical implant matching event.
+    Strictly transmits minimal operational parameters (procedure type, anatomical site,
+    estimated size, candidate count) with zero PII, zero patient names/MRNs, and zero credentials.
+    """
+    logger.info(
+        f"[Phase 10 Matching Event] Case: {request.case_id} | Type: {request.procedure_type} | "
+        f"Site: {request.anatomical_site} | Candidates: {request.candidates_count}"
+    )
+
+    return MatchingAnalysisEventResponse(
+        success=True,
+        status="pending_configuration",
+        message="Matching event recorded with minimum authorized parameters. SNS Workbench webhook integration ready for configuration.",
+        case_id=request.case_id,
+        timestamp=request.timestamp or datetime.utcnow().isoformat()
+    )
 
 @router.post(
     "/auth-webhook",

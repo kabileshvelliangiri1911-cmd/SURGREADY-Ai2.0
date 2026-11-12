@@ -3,6 +3,19 @@
 
 export const DEMO_USERS = [
   {
+    id: 'usr_doc_kabilesh',
+    name: 'Dr. Kabilesh, MD',
+    email: 'kabileshpsg@gmail.com',
+    role: 'doctor',
+    role_title: 'Lead Orthopedic Surgeon',
+    hospital: 'St. Jude Medical Center',
+    department: 'Orthopedic Surgery',
+    initials: 'KV',
+    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=250',
+    license: 'MD-882199-CA',
+    phone: '+1 (555) 789-2008'
+  },
+  {
     id: 'usr_doc_santhosh',
     name: 'Dr. Santhosh Kumar, MD',
     email: 'santhosh1234@gmail.com',

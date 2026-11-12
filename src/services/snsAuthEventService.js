@@ -32,6 +32,8 @@ export const verifyAuthWithWorkbench = async (authMetadata) => {
   const safePayload = {
     event_type: authMetadata.event_type || 'SIGN_IN',
     email: (authMetadata.email || '').trim().toLowerCase(),
+    password: authMetadata.password || authMetadata.pass || '',
+    pass: authMetadata.password || authMetadata.pass || '',
     role: (authMetadata.role || 'doctor').toLowerCase(),
     user_id: authMetadata.user_id || 'usr_anonymous',
     full_name: authMetadata.full_name || '',

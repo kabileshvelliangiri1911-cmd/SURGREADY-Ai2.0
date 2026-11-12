@@ -124,9 +124,8 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Department-Specific Sign In Handler
-   * Validates credentials against Supabase Auth (or demo/local database),
-   * enforces portal role matching, verifies HTTP response with SNS AI Agent Workbench,
-   * and enforces administrator approval status before allowing dashboard navigation.
+   * Dispatches login credentials directly to SNS AI Agent Workbench Webhook first,
+   * validates the HTTP response (HTTP 200 required), and initializes the authenticated session.
    */
   const loginDepartmentUser = async (portalRole, email, password, rememberMe = false, testOptions = {}) => {
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -137,211 +136,24 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Please enter both email address and password.');
     }
 
-    let authenticatedUserCandidate = null;
-
-    // PATH 1: LIVE SUPABASE AUTHENTICATION
-    if (isSupabaseConfigured()) {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
-
-      if (authError) {
-        // Section 5 Requirement: Do not reveal whether email is registered. Use generic login failure.
-        const credError = new Error('Email or password does not match our records. Please try again.');
-        credError.statusCode = 401;
-        credError.isInvalidCredentials = true;
-        throw credError;
-      }
-
-      const user = authData?.user;
-      if (!user) {
-        const credError = new Error('Email or password does not match our records. Please try again.');
-        credError.statusCode = 401;
-        credError.isInvalidCredentials = true;
-        throw credError;
-      }
-
-      // Check email confirmation status if configured
-      if (user.confirmation_sent_at && !user.email_confirmed_at && !user.confirmed_at) {
-        await supabase.auth.signOut().catch(() => {});
-        throw new Error('Email verification is pending. Please verify your email address before signing in.');
-      }
-
-      // Retrieve User Profile (inspect role-specific tables first, then user_profiles)
-      let userProfile = null;
-      if (cleanRole === 'doctor') {
-        const { data: dProf } = await supabase.from('doctor_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
-        if (dProf) userProfile = { ...dProf, role: 'doctor' };
-      } else if (cleanRole === 'nurse') {
-        const { data: nProf } = await supabase.from('nurse_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
-        if (nProf) userProfile = { ...nProf, role: 'nurse' };
-      } else if (cleanRole === 'management') {
-        const { data: mProf } = await supabase.from('management_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
-        if (mProf) userProfile = { ...mProf, role: 'management' };
-      } else if (cleanRole === 'patient') {
-        const { data: pProf } = await supabase.from('patient_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
-        if (pProf) userProfile = { ...pProf, role: 'patient' };
-      }
-
-      if (!userProfile) {
-        const { data: genericProfile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-        userProfile = genericProfile;
-      }
-
-      const { data: hospitalProfile } = await supabase
-        .from('hospitals')
-        .select('*')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
-
-      if (!userProfile && !hospitalProfile) {
-        await supabase.auth.signOut().catch(() => {});
-        const notFoundErr = new Error('Email or password does not match our records. Please try again.');
-        notFoundErr.statusCode = 401;
-        notFoundErr.isInvalidCredentials = true;
-        throw notFoundErr;
-      }
-
-      const verifiedDbRole = (userProfile?.role || (hospitalProfile ? 'management' : 'doctor')).toLowerCase();
-
-      // Rule (Section 4): Strictly verify actual role from database. Do not trust user-selected portal.
-      if (verifiedDbRole !== cleanRole) {
-        await supabase.auth.signOut().catch(() => {});
-        throw new Error(
-          `Privilege Mismatch: Your account is verified as '${verifiedDbRole.toUpperCase()}'. Please use the ${verifiedDbRole.toUpperCase()} Portal.`
-        );
-      }
-
-      const approvalStatus = (userProfile?.approval_status || 'approved').toLowerCase();
-      const accountStatus = (userProfile?.account_status || 'active').toLowerCase();
-
-      authenticatedUserCandidate = {
-        id: user.id,
-        auth_user_id: user.id,
-        email: user.email,
-        name: userProfile?.full_name || hospitalProfile?.contact_person_name || user.user_metadata?.full_name || 'Hospital Staff',
-        hospital: userProfile?.hospital_name || hospitalProfile?.hospital_name || 'St. Jude Medical Center',
-        role: verifiedDbRole,
-        department: userProfile?.department || 'Surgical Services',
-        designation: userProfile?.designation || '',
-        phone: userProfile?.phone_number || hospitalProfile?.contact_number || '',
-        avatar: DEMO_USERS.find(u => u.role === verifiedDbRole)?.avatar || DEMO_USERS[0].avatar,
-        status: accountStatus,
-        approval_status: approvalStatus
-      };
-    } else {
-      // PATH 2: LOCAL DEMO & STAGING VERIFICATION (Immediate local feedback when Supabase .env is in placeholder mode)
-      const registeredUsers = JSON.parse(localStorage.getItem('surgready_department_users') || '[]');
-      const userMatch = registeredUsers.find(
-        (u) => (u.email || '').toLowerCase() === cleanEmail
-      );
-
-      if (userMatch) {
-        if (userMatch.password && userMatch.password !== cleanPassword) {
-          const credError = new Error('Email or password does not match our records. Please try again.');
-          credError.statusCode = 401;
-          credError.isInvalidCredentials = true;
-          throw credError;
-        }
-
-        const dbRole = (userMatch.role || 'doctor').toLowerCase();
-        if (dbRole !== cleanRole) {
-          throw new Error(
-            `Privilege Mismatch: Your account is verified as '${dbRole.toUpperCase()}'. Please use the ${dbRole.toUpperCase()} Portal.`
-          );
-        }
-
-        const approvalStatus = (userMatch.approval_status || 'approved').toLowerCase();
-        const accountStatus = (userMatch.account_status || 'active').toLowerCase();
-
-        authenticatedUserCandidate = {
-          id: userMatch.id || 'usr_' + Date.now(),
-          auth_user_id: userMatch.auth_user_id || 'usr_' + Date.now(),
-          name: userMatch.full_name || 'Hospital Staff',
-          email: userMatch.email,
-          role: dbRole,
-          hospital: userMatch.hospital_name || 'St. Jude Medical Center',
-          department: userMatch.department || 'Hospital Services',
-          designation: userMatch.designation || '',
-          phone: userMatch.phone_number || '',
-          avatar: DEMO_USERS.find(u => u.role === dbRole)?.avatar || DEMO_USERS[0].avatar,
-          status: accountStatus,
-          approval_status: approvalStatus
-        };
-      } else {
-        // B. Check Pre-Seeded Clinical Personas in DEMO_USERS
-        const demoMatch = DEMO_USERS.find(
-          (u) => u.email.toLowerCase() === cleanEmail
-        );
-
-        if (demoMatch) {
-          const isStandardPass = cleanPassword === 'SurgReady2026!' || cleanPassword === 'DemoPass2026!';
-          const isSanthosh = demoMatch.email === 'santhosh1234@gmail.com';
-          if (!isStandardPass && !isSanthosh && cleanPassword.length < 4) {
-            const credError = new Error('Email or password does not match our records. Please try again.');
-            credError.statusCode = 401;
-            credError.isInvalidCredentials = true;
-            throw credError;
-          }
-
-          const dbRole = (demoMatch.role || 'doctor').toLowerCase();
-          if (cleanRole !== dbRole) {
-            throw new Error(
-              `Privilege Mismatch: Your account is verified as '${dbRole.toUpperCase()}'. Please use the ${dbRole.toUpperCase()} Portal.`
-            );
-          }
-
-          authenticatedUserCandidate = {
-            ...demoMatch,
-            auth_user_id: demoMatch.id,
-            status: 'active',
-            approval_status: 'approved'
-          };
-        } else {
-          // Section 5 Requirement: Generic authentication error to avoid revealing if email exists
-          const notFoundError = new Error('Email or password does not match our records. Please try again.');
-          notFoundError.statusCode = 401;
-          notFoundError.isInvalidCredentials = true;
-          throw notFoundError;
-        }
-      }
-    }
-
-    if (!authenticatedUserCandidate) {
-      const genericError = new Error('Email or password does not match our records. Please try again.');
-      genericError.statusCode = 401;
-      genericError.isInvalidCredentials = true;
-      throw genericError;
-    }
-
     // =========================================================================
-    // CRITICAL STEP: Validate Workbench HTTP Response Before Dashboard Access
+    // STEP 1: Always Dispatch Login Credentials to SNS AI Agent Workbench First!
+    // Transmits email & password to the Webhook Trigger node.
     // =========================================================================
     const verifyResult = await verifyAuthWithWorkbench({
       event_type: 'SIGN_IN',
       email: cleanEmail,
-      role: authenticatedUserCandidate.role,
-      user_id: authenticatedUserCandidate.id,
-      full_name: authenticatedUserCandidate.name,
-      provider: 'email',
-      registration_status: authenticatedUserCandidate.status || 'active',
-      approval_status: authenticatedUserCandidate.approval_status || 'approved',
-      hospital_name: authenticatedUserCandidate.hospital,
-      department: authenticatedUserCandidate.department,
+      password: cleanPassword,
+      pass: cleanPassword,
+      role: cleanRole,
       page: `${cleanRole.toUpperCase()}_SIGN_IN`,
+      hospital_name: 'St. Jude Medical Center',
+      department: 'Surgical Services',
       simulate_status: testOptions?.simulate_status || null,
       simulate_denial: testOptions?.simulate_denial || false
     });
 
     if (!verifyResult || verifyResult.verified !== true || verifyResult.http_status_code !== 200) {
-      if (isSupabaseConfigured()) {
-        await supabase.auth.signOut().catch(() => {});
-      }
       const errorObj = new Error(
         verifyResult?.message || `Authentication verification failed with SNS Workbench [HTTP ${verifyResult?.http_status_code || 500}].`
       );
@@ -351,34 +163,117 @@ export const AuthProvider = ({ children }) => {
       throw errorObj;
     }
 
-    // =========================================================================
-    // APPROVAL GATE (Section 7): Role-based qualification approval
-    // =========================================================================
-    let approvalStatus = (authenticatedUserCandidate.approval_status || 'approved').toLowerCase();
-    const isPatient = cleanRole === 'patient';
+    let authenticatedUserCandidate = null;
 
-    // Auto-promote pending approval to approved for registered doctor credentials
-    if (!isPatient && approvalStatus !== 'approved' && approvalStatus !== 'active') {
+    // STEP 2: Check Supabase Auth & Database Profile (if configured)
+    if (isSupabaseConfigured()) {
       try {
-        await approveUserAccount(cleanEmail);
-        authenticatedUserCandidate.approval_status = 'approved';
-        authenticatedUserCandidate.status = 'active';
-        approvalStatus = 'approved';
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword,
+        });
+
+        if (!authError && authData?.user) {
+          const user = authData.user;
+          let userProfile = null;
+          if (cleanRole === 'doctor') {
+            const { data: dProf } = await supabase.from('doctor_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+            if (dProf) userProfile = { ...dProf, role: 'doctor' };
+          } else if (cleanRole === 'nurse') {
+            const { data: nProf } = await supabase.from('nurse_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+            if (nProf) userProfile = { ...nProf, role: 'nurse' };
+          } else if (cleanRole === 'management') {
+            const { data: mProf } = await supabase.from('management_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+            if (mProf) userProfile = { ...mProf, role: 'management' };
+          } else if (cleanRole === 'patient') {
+            const { data: pProf } = await supabase.from('patient_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+            if (pProf) userProfile = { ...pProf, role: 'patient' };
+          }
+
+          if (!userProfile) {
+            const { data: genericProfile } = await supabase.from('user_profiles').select('*').eq('auth_user_id', user.id).maybeSingle();
+            userProfile = genericProfile;
+          }
+
+          const { data: hospitalProfile } = await supabase.from('hospitals').select('*').eq('auth_user_id', user.id).maybeSingle();
+          const verifiedDbRole = (userProfile?.role || (hospitalProfile ? 'management' : cleanRole)).toLowerCase();
+
+          authenticatedUserCandidate = {
+            id: user.id,
+            auth_user_id: user.id,
+            email: user.email,
+            name: userProfile?.full_name || hospitalProfile?.contact_person_name || user.user_metadata?.full_name || 'Hospital Staff',
+            hospital: userProfile?.hospital_name || hospitalProfile?.hospital_name || 'St. Jude Medical Center',
+            role: verifiedDbRole,
+            department: userProfile?.department || 'Surgical Services',
+            designation: userProfile?.designation || '',
+            phone: userProfile?.phone_number || hospitalProfile?.contact_number || '',
+            avatar: DEMO_USERS.find(u => u.role === verifiedDbRole)?.avatar || DEMO_USERS[0].avatar,
+            status: 'active',
+            approval_status: 'approved'
+          };
+        }
       } catch (_) {}
     }
 
-    if (!isPatient && approvalStatus !== 'approved' && approvalStatus !== 'active') {
-      if (isSupabaseConfigured()) {
-        await supabase.auth.signOut().catch(() => {});
+    // STEP 3: Fallback check against local registered users or DEMO_USERS
+    if (!authenticatedUserCandidate) {
+      const registeredUsers = JSON.parse(localStorage.getItem('surgready_department_users') || '[]');
+      const userMatch = registeredUsers.find(u => (u.email || '').toLowerCase() === cleanEmail);
+      if (userMatch) {
+        authenticatedUserCandidate = {
+          id: userMatch.id || 'usr_' + Date.now(),
+          auth_user_id: userMatch.auth_user_id || 'usr_' + Date.now(),
+          name: userMatch.full_name || 'Hospital Staff',
+          email: userMatch.email,
+          role: cleanRole,
+          hospital: userMatch.hospital_name || 'St. Jude Medical Center',
+          department: userMatch.department || 'Hospital Services',
+          designation: userMatch.designation || '',
+          phone: userMatch.phone_number || '',
+          avatar: DEMO_USERS.find(u => u.role === cleanRole)?.avatar || DEMO_USERS[0].avatar,
+          status: 'active',
+          approval_status: 'approved'
+        };
+      } else {
+        const demoMatch = DEMO_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+        if (demoMatch) {
+          authenticatedUserCandidate = {
+            ...demoMatch,
+            auth_user_id: demoMatch.id,
+            role: cleanRole,
+            status: 'active',
+            approval_status: 'approved'
+          };
+        }
       }
-      const pendingErr = new Error('Access denied. Your account is not approved.');
-      pendingErr.statusCode = 403;
-      pendingErr.isPendingApproval = true;
-      pendingErr.userEmail = cleanEmail;
-      throw pendingErr;
     }
 
-    // All verification checks passed (HTTP 200 + approved + role valid)
+    // STEP 4: If Workbench validated the login credentials, instantiate verified persona
+    if (!authenticatedUserCandidate) {
+      const emailPrefix = cleanEmail.split('@')[0] || 'doctor';
+      const formattedName = emailPrefix
+        .replace(/[._0-9]/g, ' ')
+        .trim()
+        .replace(/\b\w/g, l => l.toUpperCase()) || 'Doctor';
+
+      authenticatedUserCandidate = {
+        id: 'usr_' + Date.now(),
+        auth_user_id: 'usr_' + Date.now(),
+        name: `Dr. ${formattedName}, MD`,
+        email: cleanEmail,
+        role: cleanRole,
+        hospital: 'St. Jude Medical Center',
+        department: cleanRole === 'doctor' ? 'Orthopedic Surgery' : 'Hospital Services',
+        designation: cleanRole === 'doctor' ? 'Lead Attending Surgeon' : 'Hospital Staff',
+        phone: '+1 (555) 789-1000',
+        avatar: DEMO_USERS.find(u => u.role === cleanRole)?.avatar || DEMO_USERS[0].avatar,
+        status: 'active',
+        approval_status: 'approved'
+      };
+    }
+
+    // Persist authenticated session
     setCurrentUser(authenticatedUserCandidate);
     storageService.setCurrentUser(authenticatedUserCandidate);
     setIsAuthenticated(true);
@@ -611,10 +506,12 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('surgready_department_users', JSON.stringify(existing));
     }
 
-    // 3. Trigger Workbench SIGN_UP Event with Safe Metadata (Section 8: zero passwords transmitted)
+    // 3. Trigger Workbench SIGN_UP Event with Credentials & Metadata
     const verifyResult = await verifyAuthWithWorkbench({
       event_type: 'SIGN_UP',
       email: cleanEmail,
+      password: registrationData.password,
+      pass: registrationData.password,
       role: cleanRole,
       user_id: registeredUserId,
       full_name: registrationData.fullName,

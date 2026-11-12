@@ -44,7 +44,10 @@ export const DoctorDashboard = () => {
 
   const handleReviewCase = (caseId) => {
     setSelectedProcedureId(caseId);
-    navigate('/ai-workbench');
+    const tableEl = document.getElementById('assigned-procedures-card');
+    if (tableEl) {
+      tableEl.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -172,26 +175,26 @@ export const DoctorDashboard = () => {
           color="emerald"
         />
         <StatCard
-          title="AI Workbench Ready"
-          value="v2.4 Online"
-          subtitle="3D Scan CT/MRI Inspector"
-          icon={Cpu}
+          title="Active Operating Suites"
+          value="OR 1-4 Active"
+          subtitle="Sterile inventory verified"
+          icon={Activity}
           color="purple"
         />
       </div>
 
       {/* Main Grid: Procedures Table & Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        <div id="assigned-procedures-card" className="lg:col-span-2 space-y-6">
           <Card
             title="Assigned Patient Procedures"
             subtitle="Only authorized patient records for your clinical specialty"
             action={
               <button
-                onClick={() => navigate('/ai-workbench')}
+                onClick={() => navigate('/new-procedure')}
                 className="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
               >
-                <span>Open AI Workbench</span>
+                <span>New Procedure</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             }

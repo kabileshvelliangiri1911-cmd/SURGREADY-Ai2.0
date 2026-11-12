@@ -23,7 +23,6 @@ import { NurseDashboard } from './components/dashboard/NurseDashboard';
 import { PatientDashboard } from './components/dashboard/PatientDashboard';
 
 import { NewProcedurePage } from './pages/NewProcedurePage';
-import { AIWorkbenchPage } from './pages/AIWorkbenchPage';
 import { ManualsPage } from './pages/ManualsPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { ChecklistPage } from './pages/ChecklistPage';
@@ -257,7 +256,7 @@ export const App = () => {
 
                 {/* Clinical Operational Tools */}
                 <Route path="/new-procedure" element={<NewProcedurePage />} />
-                <Route path="/ai-workbench" element={<AIWorkbenchPage />} />
+                <Route path="/ai-workbench" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/manuals" element={<ManualsPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/checklist" element={<ChecklistPage />} />

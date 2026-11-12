@@ -81,7 +81,7 @@ export const TopNav = ({ onOpenMobileMenu, title, subtitle }) => {
     setSelectedProcedureId(procedureId);
     setSearchQuery('');
     setIsSearchFocused(false);
-    navigate('/ai-workbench');
+    navigate('/dashboard');
   };
 
   return (

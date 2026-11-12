@@ -85,7 +85,6 @@ export const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
         return [
           { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
           { name: 'New Procedure', path: '/new-procedure', icon: PlusCircle, highlight: true },
-          { name: 'AI Workbench', path: '/ai-workbench', icon: Cpu, badge: 'AI-2.4' },
           { name: 'Surgical Manuals', path: '/manuals', icon: BookOpen },
           {
             name: 'Inventory',

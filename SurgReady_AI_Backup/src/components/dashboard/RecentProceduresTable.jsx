@@ -86,9 +86,10 @@ export const RecentProceduresTable = () => {
     }
   };
 
-  const handleOpenWorkbench = (procId) => {
+  const handleOpenCaseDetails = (procId) => {
     setSelectedProcedureId(procId);
-    navigate('/ai-workbench');
+    const proc = procedures.find((p) => p.id === procId);
+    if (proc) setSelectedProcModal(proc);
   };
 
   const handleOpenChecklist = (procId) => {
@@ -454,18 +455,11 @@ export const RecentProceduresTable = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setSelectedProcModal(proc)}
-                            className="p-1.5 text-slate-500 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition-colors"
-                            title="View Procedure Summary"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenWorkbench(proc.id)}
                             className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-brand-primary hover:bg-blue-100 transition-colors flex items-center gap-1"
-                            title="Open AI Workbench"
+                            title="View Case Details"
                           >
-                            <Cpu className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Workbench</span>
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Details</span>
                           </button>
                           <button
                             onClick={() => handleOpenChecklist(proc.id)}
@@ -520,12 +514,12 @@ export const RecentProceduresTable = () => {
                   variant="primary"
                   size="sm"
                   onClick={() => {
-                    handleOpenWorkbench(selectedProcModal.id);
+                    handleOpenChecklist(selectedProcModal.id);
                     setSelectedProcModal(null);
                   }}
-                  rightIcon={<ExternalLink className="w-3.5 h-3.5" />}
+                  rightIcon={<ClipboardCheck className="w-3.5 h-3.5" />}
                 >
-                  Launch Workbench
+                  Open Checklist
                 </Button>
               </div>
             </div>

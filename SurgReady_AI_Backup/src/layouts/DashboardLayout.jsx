@@ -20,11 +20,6 @@ export const DashboardLayout = () => {
           title: 'New Procedure Preparation',
           subtitle: 'Step-by-step procedural ingestion, anatomical modeling & plan creation'
         };
-      case '/ai-workbench':
-        return {
-          title: 'AI Surgical Workbench',
-          subtitle: 'Automated 3D scan analysis, implant recommendation & manual citations'
-        };
       case '/manuals':
         return {
           title: 'Surgical Technique Manuals',

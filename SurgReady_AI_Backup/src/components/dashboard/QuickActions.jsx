@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Cpu, Boxes, ClipboardCheck, ArrowUpRight } from 'lucide-react';
+import { PlusCircle, BookOpen, Boxes, ClipboardCheck, ArrowUpRight } from 'lucide-react';
 
 export const QuickActions = () => {
   const navigate = useNavigate();
@@ -16,11 +16,11 @@ export const QuickActions = () => {
       badgeColor: 'bg-blue-100 text-blue-700'
     },
     {
-      title: 'Open AI Workbench',
-      description: 'Run automatic 3D sizing & manual cross-refs',
-      icon: Cpu,
-      path: '/ai-workbench',
-      badge: 'v2.4 Engine',
+      title: 'Technique Manuals',
+      description: 'Search OEM surgical guides & sizing charts',
+      icon: BookOpen,
+      path: '/manuals',
+      badge: 'OEM Library',
       color: 'bg-brand-navy text-white',
       badgeColor: 'bg-slate-100 text-brand-navy'
     },

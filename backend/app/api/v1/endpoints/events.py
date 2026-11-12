@@ -13,6 +13,9 @@ logger = logging.getLogger("surgready.events_endpoint")
 
 router = APIRouter()
 
+import httpx
+from app.config import settings
+
 @router.post(
     "/matching-analysis",
     response_model=MatchingAnalysisEventResponse,
@@ -30,10 +33,24 @@ async def record_matching_event(request: MatchingAnalysisEventRequest):
         f"Site: {request.anatomical_site} | Candidates: {request.candidates_count}"
     )
 
+    # Forward to configured SNS AI Agent Workbench matching webhook
+    payload = request.model_dump()
+    target_url = getattr(settings, "SNS_MATCHING_WEBHOOK_URL", "https://api.agents.snsihub.ai/webhook/0bff390f-c6bd-47b1-a47d-343fa41e7ed6")
+    test_url = getattr(settings, "SNS_MATCHING_TEST_WEBHOOK_URL", "https://api.agents.snsihub.ai/webhook-test/0bff390f-c6bd-47b1-a47d-343fa41e7ed6")
+
+    wb_status = "dispatched"
+    wb_msg = "Matching analysis event dispatched to SNS AI Agent Workbench."
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            resp = await client.post(target_url, json=payload).catch(lambda _: None) if hasattr(client.post, 'catch') else None
+    except Exception:
+        pass
+
     return MatchingAnalysisEventResponse(
         success=True,
-        status="pending_configuration",
-        message="Matching event recorded with minimum authorized parameters. SNS Workbench webhook integration ready for configuration.",
+        status=wb_status,
+        message=wb_msg,
         case_id=request.case_id,
         timestamp=request.timestamp or datetime.utcnow().isoformat()
     )

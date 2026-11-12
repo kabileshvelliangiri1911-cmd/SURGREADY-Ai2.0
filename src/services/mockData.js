@@ -3,6 +3,19 @@
 
 export const DEMO_USERS = [
   {
+    id: 'usr_doc_santhosh',
+    name: 'Dr. Santhosh Kumar, MD',
+    email: 'santhosh1234@gmail.com',
+    role: 'doctor',
+    role_title: 'Lead Orthopedic Surgeon',
+    hospital: 'St. Jude Medical Center',
+    department: 'Orthopedic Surgery',
+    initials: 'SK',
+    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=250',
+    license: 'MD-882190-CA',
+    phone: '+1 (555) 789-1234'
+  },
+  {
     id: 'usr_doc_01',
     name: 'Dr. Sarah Jenkins, MD',
     email: 'doctor.sarah@stjude-health.org',

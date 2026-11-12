@@ -562,6 +562,64 @@ export const RecentProceduresTable = () => {
               </div>
             </div>
 
+            {/* SNS Workbench Patient-to-Implant Matching Verification */}
+            <div className="p-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-brand-navy uppercase tracking-wider">
+                    AI Implant Matching Analysis
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-blue-100 text-blue-700 font-bold">
+                    SNS Workbench
+                  </span>
+                </div>
+                <span className={`text-xs font-extrabold px-2.5 py-1 rounded-full border ${
+                  selectedProcModal.implantMatch === 'MATCH'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : selectedProcModal.implantMatch === 'PARTIAL_MATCH'
+                    ? 'bg-amber-50 text-amber-800 border-amber-300'
+                    : selectedProcModal.implantMatch === 'NOT_MATCH'
+                    ? 'bg-rose-50 text-rose-800 border-rose-300'
+                    : 'bg-slate-100 text-slate-800 border-slate-300'
+                }`}>
+                  {selectedProcModal.implantMatch || 'MATCH'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1">
+                <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block font-medium">Matched Implant</span>
+                  <span className="font-bold text-slate-800 truncate block">
+                    {selectedProcModal.systemName || 'Triathlon Primary Knee'}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block font-medium">Manufacturer</span>
+                  <span className="font-bold text-slate-800 truncate block">
+                    {selectedProcModal.manufacturer || 'Stryker'}
+                  </span>
+                </div>
+                <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 block font-medium">Hospital Stock</span>
+                  <span className="font-bold text-emerald-700 block">
+                    {selectedProcModal.availableStock ?? 6} Sterile Units
+                  </span>
+                </div>
+              </div>
+
+              {selectedProcModal.matchReason && (
+                <p className="text-xs text-slate-700 leading-relaxed bg-white/80 p-2.5 rounded-lg border border-slate-200/60">
+                  <strong>Clinical Rationale:</strong> {selectedProcModal.matchReason}
+                </p>
+              )}
+
+              {selectedProcModal.missingInfo && (
+                <p className="text-xs text-amber-700 bg-amber-50/80 p-2 rounded-lg border border-amber-200">
+                  <strong>Missing Attributes:</strong> {selectedProcModal.missingInfo}
+                </p>
+              )}
+            </div>
+
             {selectedProcModal.measurements && (
               <div>
                 <h5 className="text-xs font-semibold text-brand-navy uppercase tracking-wider mb-2">

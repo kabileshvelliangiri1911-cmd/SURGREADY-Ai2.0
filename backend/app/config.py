@@ -38,6 +38,17 @@ class Settings:
     )
     SNS_AUTH_WEBHOOK_TIMEOUT_SECONDS: float = float(os.getenv("SNS_AUTH_WEBHOOK_TIMEOUT_SECONDS", "15.0"))
 
+    # SNS AI Agent Workbench - Patient-to-Implant Matching Webhook (Section 10)
+    SNS_MATCHING_WEBHOOK_URL: str = os.getenv(
+        "SNS_MATCHING_WEBHOOK_URL",
+        "https://api.agents.snsihub.ai/webhook/0bff390f-c6bd-47b1-a47d-343fa41e7ed6"
+    )
+    SNS_MATCHING_TEST_WEBHOOK_URL: str = os.getenv(
+        "SNS_MATCHING_TEST_WEBHOOK_URL",
+        "https://api.agents.snsihub.ai/webhook-test/0bff390f-c6bd-47b1-a47d-343fa41e7ed6"
+    )
+    SNS_MATCHING_WEBHOOK_TIMEOUT_SECONDS: float = float(os.getenv("SNS_MATCHING_WEBHOOK_TIMEOUT_SECONDS", "20.0"))
+
     # File Upload settings
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "25"))

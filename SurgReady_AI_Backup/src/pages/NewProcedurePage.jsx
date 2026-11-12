@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -16,7 +16,10 @@ import {
   ShieldAlert,
   FileText,
   Image as ImageIcon,
-  AlertCircle
+  AlertCircle,
+  X,
+  File,
+  Check
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -38,6 +41,8 @@ export const NewProcedurePage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -59,14 +64,16 @@ export const NewProcedurePage = () => {
     systemName: 'Triathlon Knee System',
     priority: 'Elective',
 
-    // Step 3: Anatomical Information & Scan
+    // Step 3: Anatomical Information & Scan (Supports PDF, JPG, PNG, DICOM)
     varusValgus: '5.8° Varus Deformity',
     femoralSizeEst: 'Femoral Size 5',
     tibialSizeEst: 'Tibial Baseplate Size 4',
     clinicalNotes: 'Moderate osteoarthritis with medial compartment narrowing. Preserved cruciate ligaments.',
     uploadedScanName: 'PreOp_CT_Coronal_Knee_Recon.dicom',
     uploadedScanSize: '48.2 MB',
-    scanPreviewUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600'
+    uploadedScanType: 'application/dicom',
+    uploadedScanFormat: 'dicom',
+    scanPreviewUrl: null
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -104,9 +111,121 @@ export const NewProcedurePage = () => {
         tibialSizeEst: 'Cup 54mm Porous',
         clinicalNotes: 'Severe avascular necrosis with secondary collapse. Good bone stock in acetabulum.',
         uploadedScanName: 'Pelvis_Bilateral_CT_Scan.dcm',
-        uploadedScanSize: '74.1 MB'
+        uploadedScanSize: '74.1 MB',
+        uploadedScanType: 'application/octet-stream',
+        uploadedScanFormat: 'dicom',
+        scanPreviewUrl: null
       }));
       toast.info('Sample Hip Arthroplasty pre-filled.');
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleFileSelected = (file) => {
+    if (!file) return;
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'dcm', 'dicom', 'tar', 'zip', 'stl'];
+    const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png'].includes(ext);
+    const isPdf = file.type === 'application/pdf' || ext === 'pdf';
+
+    if (!allowed.includes(ext) && !isImage && !isPdf) {
+      toast.error('Supported formats: PDF (.pdf), JPG (.jpg, .jpeg), PNG (.png), and DICOM scans.');
+      return;
+    }
+
+    const formattedSize = formatFileSize(file.size);
+
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData((prev) => ({
+          ...prev,
+          uploadedScanName: file.name,
+          uploadedScanSize: formattedSize,
+          uploadedScanType: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+          uploadedScanFormat: ext === 'jpeg' ? 'jpg' : ext,
+          scanPreviewUrl: e.target.result
+        }));
+        toast.success(`Attached ${file.name} (${formattedSize})`);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        uploadedScanName: file.name,
+        uploadedScanSize: formattedSize,
+        uploadedScanType: isPdf ? 'application/pdf' : 'application/dicom',
+        uploadedScanFormat: isPdf ? 'pdf' : ext,
+        scanPreviewUrl: null
+      }));
+      toast.success(`Attached ${file.name} (${formattedSize})`);
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelected(file);
+    }
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFileSelected(file);
+    }
+  };
+
+  const selectSampleFile = (format) => {
+    if (format === 'pdf') {
+      setFormData((prev) => ({
+        ...prev,
+        uploadedScanName: 'PreOp_Clinical_Radiology_Report.pdf',
+        uploadedScanSize: '2.4 MB',
+        uploadedScanType: 'application/pdf',
+        uploadedScanFormat: 'pdf',
+        scanPreviewUrl: null
+      }));
+      toast.info('Attached Sample Clinical Report (PDF)');
+    } else if (format === 'png') {
+      setFormData((prev) => ({
+        ...prev,
+        uploadedScanName: 'PreOp_Coronal_Knee_Alignment.png',
+        uploadedScanSize: '4.8 MB',
+        uploadedScanType: 'image/png',
+        uploadedScanFormat: 'png',
+        scanPreviewUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600'
+      }));
+      toast.info('Attached Sample Pre-Op Scan (PNG)');
+    } else if (format === 'jpg') {
+      setFormData((prev) => ({
+        ...prev,
+        uploadedScanName: 'Anterior_Knee_Bilateral_XRay.jpg',
+        uploadedScanSize: '3.6 MB',
+        uploadedScanType: 'image/jpeg',
+        uploadedScanFormat: 'jpg',
+        scanPreviewUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600'
+      }));
+      toast.info('Attached Sample Anterior X-Ray (JPG)');
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        uploadedScanName: 'PreOp_CT_Coronal_Knee_Recon.dicom',
+        uploadedScanSize: '48.2 MB',
+        uploadedScanType: 'application/dicom',
+        uploadedScanFormat: 'dicom',
+        scanPreviewUrl: null
+      }));
+      toast.info('Attached Sample Helical CT Scan (DICOM)');
     }
   };
 
@@ -258,16 +377,76 @@ export const NewProcedurePage = () => {
         candidateMatches = backendCase?.candidates || [];
       }
 
-      // 6. SNS AI Agent Workbench Event (Phase 10 - Isolated Minimal Non-PII Data)
-      dispatchMatchingEventToWorkbench({
+      // 6. SNS AI Agent Workbench Event - ALL DATA TRANSMITTED VIA WEBHOOK
+      // Endpoint: https://api.agents.snsihub.ai/webhook/2f4fa543-592a-4bf2-b963-be512e00d79e
+      const allProcedureData = {
         case_id: assignedId,
+        patient_case_id: assignedId,
+        patientId: formData.patientId,
+        patient_id: formData.patientId,
+        mrn: formData.patientId,
+        patientName: formData.patientName,
+        patient_name: formData.patientName,
+        patientAge: formData.patientAge,
+        patient_age: formData.patientAge,
+        patientGender: formData.patientGender,
+        patient_gender: formData.patientGender,
+        hospitalId: formData.hospitalId,
+        hospital_id: formData.hospitalId,
+        hospitalName: hospitalName,
+        hospital_name: hospitalName,
+        leadSurgeon: doctorName,
+        lead_surgeon: doctorName,
+        surgeon: doctorName,
+        doctorId: doctorId,
+        surgeryDate: formData.surgeryDate,
+        surgery_date: formData.surgeryDate,
+        surgeryTime: formData.surgeryTime,
+        surgery_time: formData.surgeryTime,
+        name: formData.name,
+        procedure_name: formData.name,
+        code: formData.code,
+        procedure_code: formData.code,
+        type: formData.type,
         procedure_type: formData.type,
-        anatomical_site: anatomicalSite,
-        implant_category: 'Implants',
-        estimated_implant_size: formData.femoralSizeEst,
+        specialty_category: formData.type,
+        manufacturer: formData.manufacturer,
+        systemName: formData.systemName,
+        system_name: formData.systemName,
+        priority: formData.priority,
         surgical_priority: formData.priority,
+        varusValgus: formData.varusValgus,
+        anatomical_alignment: formData.varusValgus,
+        femoralSizeEst: formData.femoralSizeEst,
+        estimated_femoral_size: formData.femoralSizeEst,
+        tibialSizeEst: formData.tibialSizeEst,
+        estimated_tibial_size: formData.tibialSizeEst,
+        clinicalNotes: formData.clinicalNotes,
+        clinical_notes: formData.clinicalNotes,
+        anatomical_site: anatomicalSite,
+        uploadedScanName: formData.uploadedScanName,
+        uploaded_scan_name: formData.uploadedScanName,
+        fileName: formData.uploadedScanName,
+        file_name: formData.uploadedScanName,
+        uploadedScanSize: formData.uploadedScanSize,
+        uploaded_scan_size: formData.uploadedScanSize,
+        fileSize: formData.uploadedScanSize,
+        file_size: formData.uploadedScanSize,
+        uploadedScanType: formData.uploadedScanType,
+        uploaded_scan_type: formData.uploadedScanType,
+        uploadedScanFormat: formData.uploadedScanFormat,
+        uploaded_scan_format: formData.uploadedScanFormat,
+        fileFormat: formData.uploadedScanFormat,
+        scanPreviewUrl: formData.scanPreviewUrl,
+        candidates: candidateMatches,
         candidates_count: candidateMatches.length
-      }).catch(() => {});
+      };
+
+      try {
+        await dispatchMatchingEventToWorkbench(allProcedureData);
+      } catch (dispatchErr) {
+        console.warn('[SNS Workbench Procedure Launch Warning]', dispatchErr);
+      }
 
       // 7. Update Application State & Refresh Doctor Dashboard (Phase 7)
       const created = createProcedure({
@@ -298,13 +477,15 @@ export const NewProcedurePage = () => {
           jointLineOffset: '+1.5 mm'
         },
         scanInfo: {
-          modality: 'Pre-op Helical CT / 3D Reconstruction',
+          modality: 'Pre-op Scan & Clinical Document Ingestion',
           scanDate: new Date().toISOString().slice(0, 10),
           slicesCount: 512,
           thickness: '0.625 mm',
           status: 'AI Processed & Verified',
           fileName: formData.uploadedScanName,
-          fileSize: formData.uploadedScanSize
+          fileSize: formData.uploadedScanSize,
+          fileFormat: formData.uploadedScanFormat,
+          fileType: formData.uploadedScanType
         }
       });
 
@@ -313,7 +494,7 @@ export const NewProcedurePage = () => {
       }
 
       setIsConfirmOpen(false);
-      toast.success(`Patient Case ${assignedId} registered in database! AI Candidate Comparison ready for review.`);
+      toast.success(`Procedure for ${formData.patientName} (${assignedId}) launched! All data dispatched to SNS Workbench.`);
       navigate('/doctor/dashboard');
     } catch (e) {
       console.error('[Patient Case Registration Error]', e);
@@ -721,27 +902,169 @@ export const NewProcedurePage = () => {
               />
             </div>
 
-            {/* Scan Upload Area */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-text mb-1.5">
-                Pre-operative Imaging Scan (DICOM, CT, MRI, or 3D STL)
-              </label>
-              
-              <div className="border-2 border-dashed border-blue-200 bg-blue-50/40 rounded-2xl p-6 text-center hover:bg-blue-50/70 transition-colors cursor-pointer group">
+            {/* Scan & Clinical Document Upload Area (PDF, JPG, PNG, DICOM) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-text">
+                  Pre-operative Scans & Documents (PDF, JPG, PNG, DICOM) *
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                    PDF
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    JPG
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    PNG
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    DICOM
+                  </span>
+                </div>
+              </div>
+
+              {/* Hidden Native File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.dcm,.dicom,.tar,.zip,.stl,application/pdf,image/jpeg,image/png"
+                onChange={handleFileInputChange}
+                className="hidden"
+                id="procedure-scan-file-input"
+              />
+
+              {/* Drag & Drop Upload Zone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleFileDrop}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer group relative ${
+                  isDragging
+                    ? 'border-brand-primary bg-blue-100/60 scale-[1.01]'
+                    : 'border-blue-200 bg-blue-50/40 hover:bg-blue-50/80 hover:border-blue-300'
+                }`}
+              >
                 <div className="w-12 h-12 rounded-2xl bg-white border border-blue-200 text-brand-primary mx-auto flex items-center justify-center shadow-xs mb-3 group-hover:scale-105 transition-transform">
                   <UploadCloud className="w-6 h-6" />
                 </div>
                 <p className="text-sm font-bold text-brand-navy">
-                  Drag and drop surgical scan package here
+                  Drag & drop medical documents or scans here, or <span className="text-brand-primary underline underline-offset-2">Browse</span>
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Supports DICOM series (.dcm, .tar), Helical CT slices, and high-res MRI (Max 500 MB)
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Accepts PDF clinical reports, high-resolution JPG / PNG scans, and DICOM series (up to 500 MB)
                 </p>
-                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 shadow-2xs">
-                  <span>Attached File:</span>
-                  <span className="font-semibold text-brand-primary">{formData.uploadedScanName}</span>
-                  <span className="text-[10px] text-slate-400">({formData.uploadedScanSize})</span>
-                </div>
+
+                {/* Attached File Card */}
+                {formData.uploadedScanName && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-4 inline-flex items-center gap-3 p-2.5 sm:px-4 rounded-xl bg-white border border-slate-200 shadow-sm text-left max-w-full"
+                  >
+                    {/* Format Icon / Thumbnail */}
+                    {formData.scanPreviewUrl ? (
+                      <img
+                        src={formData.scanPreviewUrl}
+                        alt="Scan preview"
+                        className="w-10 h-10 object-cover rounded-lg border border-slate-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-xs shadow-xs"
+                        style={{
+                          backgroundColor:
+                            formData.uploadedScanFormat === 'pdf'
+                              ? '#e11d48'
+                              : ['png', 'jpg', 'jpeg'].includes(formData.uploadedScanFormat)
+                              ? '#0284c7'
+                              : '#4f46e5'
+                        }}
+                      >
+                        {formData.uploadedScanFormat === 'pdf' ? (
+                          <FileText className="w-5 h-5" />
+                        ) : ['png', 'jpg', 'jpeg'].includes(formData.uploadedScanFormat) ? (
+                          <ImageIcon className="w-5 h-5" />
+                        ) : (
+                          <UploadCloud className="w-5 h-5" />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-800 truncate block max-w-xs sm:max-w-md">
+                          {formData.uploadedScanName}
+                        </span>
+                        <span
+                          className={`text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${
+                            formData.uploadedScanFormat === 'pdf'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : ['png', 'jpg', 'jpeg'].includes(formData.uploadedScanFormat)
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          }`}
+                        >
+                          {formData.uploadedScanFormat || 'FILE'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                        <span>{formData.uploadedScanSize}</span>
+                        <span>•</span>
+                        <span className="text-emerald-600 font-medium">Ready for SNS Workbench</span>
+                      </div>
+                    </div>
+
+                    {/* Change Button */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors flex-shrink-0"
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Sample File Presets */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="text-slate-400 font-medium text-[11px]">Quick Samples:</span>
+                <button
+                  type="button"
+                  onClick={() => selectSampleFile('pdf')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 border border-slate-200 text-slate-700 transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  <FileText className="w-3.5 h-3.5 text-rose-600" />
+                  Clinical Report (PDF)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectSampleFile('png')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 text-slate-700 transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                  Pre-Op Scan (PNG)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectSampleFile('jpg')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 text-slate-700 transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                  Anterior X-Ray (JPG)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectSampleFile('dicom')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 text-slate-700 transition-colors flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                  CT Series (DICOM)
+                </button>
               </div>
             </div>
           </div>
@@ -832,8 +1155,35 @@ export const NewProcedurePage = () => {
                   <span className="font-bold text-slate-800">{formData.femoralSizeEst}</span>
                 </div>
                 <div className="p-2.5 bg-white rounded-lg border border-blue-100">
-                  <span className="text-slate-400 block text-[10px]">Attached Imaging Scan</span>
-                  <span className="font-bold text-brand-primary truncate block">{formData.uploadedScanName}</span>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-slate-400 block text-[10px]">Attached Imaging Scan</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                        formData.uploadedScanFormat === 'pdf'
+                          ? 'bg-rose-100 text-rose-700'
+                          : ['png', 'jpg', 'jpeg'].includes(formData.uploadedScanFormat)
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-indigo-100 text-indigo-700'
+                      }`}
+                    >
+                      {formData.uploadedScanFormat || 'FILE'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {formData.scanPreviewUrl && (
+                      <img
+                        src={formData.scanPreviewUrl}
+                        alt="Scan preview"
+                        className="w-7 h-7 object-cover rounded border border-slate-200 flex-shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <span className="font-bold text-brand-primary truncate block" title={formData.uploadedScanName}>
+                        {formData.uploadedScanName}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">{formData.uploadedScanSize}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <p className="text-slate-600 mt-2 text-xs leading-relaxed">
@@ -845,7 +1195,7 @@ export const NewProcedurePage = () => {
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
               <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <span>
-                By confirming submission, this procedure will be ingested into the SurgReady AI Workbench. Automated recommendations will generate corresponding surgical instrument checklists, inventory reservations, and manual references.
+                By confirming launch, this procedure and all clinical parameters will be transmitted to the SNS AI Agent Workbench webhook (https://api.agents.snsihub.ai/webhook/2f4fa543-592a-4bf2-b963-be512e00d79e) for automated implant matching, inventory reservations, and technique manual cross-referencing.
               </span>
             </div>
           </div>
@@ -876,11 +1226,13 @@ export const NewProcedurePage = () => {
             <Button
               variant="primary"
               size="lg"
-              onClick={() => setIsConfirmOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 shadow-md"
+              onClick={handleConfirmSubmit}
+              disabled={isSubmitting}
+              isLoading={isSubmitting}
+              className="bg-emerald-600 hover:bg-emerald-700 shadow-md font-bold text-sm px-6"
               rightIcon={<CheckCircle2 className="w-4 h-4" />}
             >
-              Confirm & Launch Procedure
+              {isSubmitting ? 'Transmitting to SNS Workbench...' : 'Confirm & Launch Procedure'}
             </Button>
           )}
         </div>

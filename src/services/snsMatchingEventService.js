@@ -75,6 +75,9 @@ export const dispatchMatchingEventToWorkbench = async (matchingEventData) => {
     leadSurgeon: matchingEventData.leadSurgeon || matchingEventData.surgeon || 'Dr. Sarah Jenkins',
     attending_surgeon: matchingEventData.leadSurgeon || matchingEventData.surgeon || 'Dr. Sarah Jenkins',
     assigned_doctor_id: matchingEventData.doctorId || matchingEventData.assigned_doctor_id || null,
+    staff_attender_email: matchingEventData.staffAttenderEmail || matchingEventData.staff_attender_email || '',
+    staffAttenderEmail: matchingEventData.staffAttenderEmail || matchingEventData.staff_attender_email || '',
+    staff_attender_email_id: matchingEventData.staffAttenderEmail || matchingEventData.staff_attender_email || matchingEventData.staff_attender_email_id || '',
 
     // Procedure & Implant System Specifications
     procedure_name: matchingEventData.name || matchingEventData.procedure_name || '',

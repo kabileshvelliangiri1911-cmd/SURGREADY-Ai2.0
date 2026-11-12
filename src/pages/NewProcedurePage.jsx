@@ -53,6 +53,7 @@ export const NewProcedurePage = () => {
     patientAge: 62,
     patientGender: 'Female',
     leadSurgeon: 'Dr. Sarah Jenkins',
+    staffAttenderEmail: '',
     surgeryDate: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
     surgeryTime: '08:30 AM',
 
@@ -89,6 +90,7 @@ export const NewProcedurePage = () => {
         manufacturer: 'Stryker',
         systemName: 'Triathlon Knee System',
         patientName: 'Patricia Adams',
+        staffAttenderEmail: 'nurse.attender@hospital.org',
         varusValgus: '6.2° Varus Deformity',
         femoralSizeEst: 'Femoral Component Size 5 (Right)',
         tibialSizeEst: 'Universal Baseplate Size 4',
@@ -106,6 +108,7 @@ export const NewProcedurePage = () => {
         manufacturer: 'Zimmer Biomet',
         systemName: 'Persona / G7 Acetabular',
         patientName: 'George Washington Carver',
+        staffAttenderEmail: 'staff.duty@hospital.org',
         varusValgus: 'Leg length discrepancy -6mm',
         femoralSizeEst: 'Stem Size 11 Standard',
         tibialSizeEst: 'Cup 54mm Porous',
@@ -391,6 +394,9 @@ export const NewProcedurePage = () => {
         patient_age: formData.patientAge,
         patientGender: formData.patientGender,
         patient_gender: formData.patientGender,
+        staffAttenderEmail: formData.staffAttenderEmail || '',
+        staff_attender_email: formData.staffAttenderEmail || '',
+        staff_attender_email_id: formData.staffAttenderEmail || '',
         hospitalId: formData.hospitalId,
         hospital_id: formData.hospitalId,
         hospitalName: hospitalName,
@@ -456,6 +462,7 @@ export const NewProcedurePage = () => {
         patientName: formData.patientName,
         patientAge: formData.patientAge,
         patientGender: formData.patientGender,
+        staffAttenderEmail: formData.staffAttenderEmail || '',
         hospitalId: formData.hospitalId,
         hospital: hospitalName,
         name: formData.name,
@@ -721,6 +728,19 @@ export const NewProcedurePage = () => {
                   className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-surface-border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-text mb-1">
+                Staff Attender Email ID
+              </label>
+              <input
+                type="email"
+                value={formData.staffAttenderEmail}
+                onChange={(e) => setFormData({ ...formData, staffAttenderEmail: e.target.value })}
+                placeholder="e.g. staff.attender@hospital.org"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-surface-border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              />
             </div>
           </div>
         )}
@@ -1106,10 +1126,16 @@ export const NewProcedurePage = () => {
                   <span className="text-slate-500">Scheduled Date:</span>
                   <span className="font-semibold text-slate-800">{formData.surgeryDate} at {formData.surgeryTime}</span>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className={`flex justify-between py-1 ${formData.staffAttenderEmail ? 'border-b border-slate-200/60' : ''}`}>
                   <span className="text-slate-500">Attending Surgeon:</span>
                   <span className="font-semibold text-slate-800">{formData.leadSurgeon}</span>
                 </div>
+                {formData.staffAttenderEmail && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Staff Attender Email:</span>
+                    <span className="font-semibold text-slate-800">{formData.staffAttenderEmail}</span>
+                  </div>
+                )}
               </div>
 
               {/* Procedure Details Card */}

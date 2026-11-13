@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProcedureProvider } from './context/ProcedureContext';
 import { ToastProvider } from './context/ToastContext';
@@ -93,9 +93,22 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-// Root Path Handler (Smart Navigation: to dashboard if logged in, to portal selection if not)
+// Root Path Handler (Smart Navigation: handles OAuth redirects or navigates based on auth status)
 const RootRedirect = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isOAuthCallback =
+    searchParams.has('code') ||
+    searchParams.has('state') ||
+    searchParams.has('error') ||
+    location.hash.includes('access_token') ||
+    location.hash.includes('id_token');
+
+  if (isOAuthCallback) {
+    return <AuthCallbackPage />;
+  }
+
   return <Navigate to={isAuthenticated ? "/dashboard" : "/portals"} replace />;
 };
 

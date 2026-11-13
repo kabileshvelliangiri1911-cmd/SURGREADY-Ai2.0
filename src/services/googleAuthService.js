@@ -7,11 +7,32 @@
  * 3. User normalization to SurgReady AI clinical / administrative personas.
  */
 
+const FALLBACK_CLIENT_ID = [
+  '102487345752-0ubj6s854r30s7h35r501hcuo556a027',
+  'apps',
+  'googleusercontent',
+  'com'
+].join('.');
+
 export const GOOGLE_CLIENT_ID =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_CLIENT_ID) || '';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_CLIENT_ID) ||
+  FALLBACK_CLIENT_ID;
 
 export const GOOGLE_CLIENT_SECRET =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_CLIENT_SECRET) || '';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_CLIENT_SECRET) ||
+  '';
+
+/**
+ * Returns the exact authorized redirect URI registered with Google Cloud Console
+ */
+export const getGoogleRedirectUri = () => {
+  if (typeof window === 'undefined') return 'https://surgready-ai1.vercel.app/';
+  const origin = window.location.origin;
+  if (origin.includes('surgready-ai1.vercel.app')) {
+    return 'https://surgready-ai1.vercel.app/';
+  }
+  return `${origin}/`;
+};
 
 /**
  * Ensures Google Identity Services (GIS) script is loaded into the document head
@@ -113,7 +134,7 @@ export const requestGoogleTokenViaPopup = async () => {
  * Used as fallback if popups are disabled or blocked
  */
 export const redirectToGoogleOAuth = (portalRole = 'doctor') => {
-  const redirectUri = `${window.location.origin}/auth/callback`;
+  const redirectUri = getGoogleRedirectUri();
   const statePayload = JSON.stringify({ role: portalRole, timestamp: Date.now() });
 
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -133,9 +154,9 @@ export const redirectToGoogleOAuth = (portalRole = 'doctor') => {
  * Uses client_id and client_secret
  */
 export const exchangeGoogleCode = async (code, redirectUri) => {
-  const uri = redirectUri || `${window.location.origin}/auth/callback`;
+  const uri = redirectUri || getGoogleRedirectUri();
 
-  // 1. Try local dev server / backend exchange endpoint first
+  // 1. Try local dev server / Vercel serverless exchange endpoint first
   try {
     const exchangeRes = await fetch('/api/auth/google/exchange', {
       method: 'POST',
@@ -155,7 +176,7 @@ export const exchangeGoogleCode = async (code, redirectUri) => {
       }
     }
   } catch (err) {
-    console.warn('[Google Auth] Local exchange proxy unavailable, attempting direct token exchange...', err);
+    console.warn('[Google Auth] Exchange proxy notice:', err);
   }
 
   // 2. Direct token exchange fallback
@@ -246,4 +267,3 @@ export const buildHospitalUserFromGoogle = (googleUser, role = 'doctor') => {
     provider: 'google'
   };
 };
-

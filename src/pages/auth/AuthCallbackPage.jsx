@@ -18,7 +18,8 @@ import { Button } from '../../components/common/Button';
 import { verifyAuthWithWorkbench } from '../../services/snsAuthEventService';
 import {
   exchangeGoogleCode,
-  buildHospitalUserFromGoogle
+  buildHospitalUserFromGoogle,
+  getGoogleRedirectUri
 } from '../../services/googleAuthService';
 
 export const AuthCallbackPage = () => {
@@ -72,7 +73,7 @@ export const AuthCallbackPage = () => {
         // Direct Google OAuth authorization code flow
         const codeParam = searchParams.get('code');
         if (codeParam) {
-          const googleUser = await exchangeGoogleCode(codeParam, `${window.location.origin}/auth/callback`);
+          const googleUser = await exchangeGoogleCode(codeParam, getGoogleRedirectUri());
           const hospitalUser = buildHospitalUserFromGoogle(googleUser, portalParam);
 
           const verifyResult = await verifyAuthWithWorkbench({

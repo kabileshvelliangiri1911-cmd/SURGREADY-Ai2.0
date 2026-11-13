@@ -79,7 +79,7 @@ export const storageService = {
         {
           id: 'sec-impl',
           title: 'Implant Checklist',
-          description: 'Components recommended by AI Workbench matching anatomical plan',
+          description: 'Components recommended by automated matching algorithm matching anatomical plan',
           items: [
             { id: 'gen-4', text: `Primary Implant: ${newProc.measurements?.femoralSizeEst || 'Standard Sizing'}`, checked: false, critical: true, notes: 'Verify package sterile barrier' },
             { id: 'gen-5', text: `Secondary Component: ${newProc.measurements?.tibialSizeEst || 'Standard Baseplate'}`, checked: false, critical: true, notes: 'Lot and serial scan required' },

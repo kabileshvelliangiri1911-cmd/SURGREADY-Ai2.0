@@ -419,7 +419,7 @@ export const ManualsPage = () => {
               <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 flex items-center justify-between text-xs text-brand-navy">
                 <span className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-brand-primary" />
-                  Linked in AI Workbench for Case #SR-2026-0841
+                  Linked for Case #SR-2026-0841
                 </span>
                 <span className="font-semibold text-emerald-700">Verified Citation</span>
               </div>
@@ -539,7 +539,7 @@ export const ManualsPage = () => {
               className="w-4 h-4 text-brand-primary border-slate-300 rounded focus:ring-brand-primary/30"
             />
             <span className="text-xs text-slate-600 font-medium">
-              Automatically index sections for SurgReady AI Workbench cross-referencing
+              Automatically index sections for surgical procedure cross-referencing
             </span>
           </label>
         </form>

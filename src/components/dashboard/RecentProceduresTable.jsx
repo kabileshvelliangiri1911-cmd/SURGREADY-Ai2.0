@@ -238,7 +238,7 @@ export const RecentProceduresTable = () => {
                           size="xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenWorkbench(proc.id);
+                            handleOpenCaseDetails(proc.id);
                           }}
                         >
                           Review

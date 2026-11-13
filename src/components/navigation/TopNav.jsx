@@ -350,7 +350,7 @@ export const TopNav = ({ onOpenMobileMenu, title, subtitle }) => {
             </h4>
             <p className="text-xs text-slate-600 leading-relaxed">
               1. <strong>New Procedure:</strong> Input patient, procedural details, and upload pre-op imaging scans.<br/>
-              2. <strong>AI Workbench:</strong> Review automatic 3D sizing, manual references, and required implants.<br/>
+              2. <strong>Case Review:</strong> Review automated implant matching, manual references, and required implants.<br/>
               3. <strong>Checklist:</strong> Circulating nurse and lead surgeon sign off on instrument trays and sterilization.<br/>
               4. <strong>Inventory:</strong> Real-time reservation guarantees OR availability before incision.
             </p>

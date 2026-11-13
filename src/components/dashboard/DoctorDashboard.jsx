@@ -65,7 +65,7 @@ export const DoctorDashboard = () => {
               Welcome back, {currentUser?.name || 'Dr. Sarah Jenkins'}!
             </h2>
             <p className="text-blue-100 text-xs sm:text-sm mt-1.5 leading-relaxed">
-              Review assigned patient procedures, verify implant scan sizings in the AI Workbench, and perform surgical checklist sign-offs.
+              Review assigned patient procedures, verify implant scan sizings, and perform surgical checklist sign-offs.
             </p>
           </div>
 

@@ -40,6 +40,7 @@ export const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
       case 'management':
         return [
           { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { name: 'New Procedure', path: '/new-procedure', icon: PlusCircle, highlight: true },
           {
             name: 'Hospital Inventory',
             path: '/inventory',
@@ -55,6 +56,7 @@ export const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
       case 'nurse':
         return [
           { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { name: 'New Procedure', path: '/new-procedure', icon: PlusCircle, highlight: true },
           {
             name: 'Surgical Checklist',
             path: '/checklist',

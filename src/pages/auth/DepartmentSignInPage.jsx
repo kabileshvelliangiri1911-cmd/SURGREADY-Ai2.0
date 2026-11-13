@@ -16,10 +16,7 @@ import {
   ArrowLeft,
   RotateCw,
   Clock,
-  CheckCircle2,
-  Sliders,
-  ChevronDown,
-  ChevronUp
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -47,10 +44,6 @@ export const DepartmentSignInPage = ({ roleOverride }) => {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Developer / Tester simulation settings for verifying all Section 10 test cases
-  const [showTestControls, setShowTestControls] = useState(false);
-  const [simulatedStatus, setSimulatedStatus] = useState(null); // null = real live webhook call
-  const [simulateDenial, setSimulateDenial] = useState(false);
 
   // Portal metadata
   const portalConfig = {
@@ -113,12 +106,7 @@ export const DepartmentSignInPage = ({ roleOverride }) => {
       setVerificationStage('Verifying your credentials...');
       await new Promise(r => setTimeout(r, 120));
 
-      const testOptions = {
-        simulate_status: simulatedStatus,
-        simulate_denial: simulateDenial
-      };
-
-      await loginDepartmentUser(currentRole, email, password, rememberMe, testOptions);
+      await loginDepartmentUser(currentRole, email, password, rememberMe);
 
       setVerificationStage('Verification successful! Redirecting to dashboard...');
       setSuccessMessage('Verification successful. Redirecting to your dashboard.');
@@ -168,7 +156,13 @@ export const DepartmentSignInPage = ({ roleOverride }) => {
     setSuccessMessage('');
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle(currentRole);
+      const user = await signInWithGoogle(currentRole);
+      if (user) {
+        setSuccessMessage('Google verification successful. Redirecting to your dashboard...');
+        setTimeout(() => {
+          navigate(currentConfig.dashboardRoute || '/dashboard');
+        }, 600);
+      }
     } catch (err) {
       console.error('[Google OAuth Error]', err);
       setErrorState({
@@ -452,133 +446,6 @@ export const DepartmentSignInPage = ({ roleOverride }) => {
               Register Here
             </Link>
           </div>
-        </div>
-
-        {/* Section 10 Workbench Test Suite Controls */}
-        <div className="mt-4 bg-white/80 backdrop-blur-xs rounded-2xl border border-slate-200 p-3.5 text-xs text-slate-600 shadow-xs">
-          <button
-            type="button"
-            onClick={() => setShowTestControls(!showTestControls)}
-            className="w-full flex items-center justify-between font-bold text-slate-700 hover:text-brand-primary"
-          >
-            <div className="flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-brand-primary" />
-              <span>SNS Workbench Verification Simulator</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-blue-50 text-brand-primary rounded border border-blue-200">
-                {simulatedStatus ? `HTTP ${simulatedStatus}` : simulateDenial ? 'Denial' : 'Live Webhook'}
-              </span>
-            </div>
-            {showTestControls ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
-          {showTestControls && (
-            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
-              <p className="text-[11px] text-slate-500">
-                Select a response mode to test how the interface enforces dashboard access restrictions:
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(null); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === null && !simulateDenial
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Live Webhook POST
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(200); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 200
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-                  }`}
-                >
-                  Simulate HTTP 200 (Success)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(400); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 400
-                      ? 'bg-amber-600 text-white border-amber-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 400 (Bad Req)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(401); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 401
-                      ? 'bg-amber-600 text-white border-amber-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 401 (Unauth)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(403); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 403
-                      ? 'bg-rose-600 text-white border-rose-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 403 (Denied)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(404); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 404
-                      ? 'bg-rose-600 text-white border-rose-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 404 (Not Found)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(500); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 500
-                      ? 'bg-red-700 text-white border-red-700'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 500 (Server Err)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(504); setSimulateDenial(false); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors ${
-                    simulatedStatus === 504
-                      ? 'bg-purple-600 text-white border-purple-600'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 504 (Timeout)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSimulatedStatus(null); setSimulateDenial(true); }}
-                  className={`p-1.5 rounded-lg border font-medium text-left transition-colors col-span-2 ${
-                    simulateDenial
-                      ? 'bg-rose-700 text-white border-rose-700'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Simulate HTTP 200 with Explicit JSON Denial (decision: DENIED)
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Clinical Safe Footnote */}

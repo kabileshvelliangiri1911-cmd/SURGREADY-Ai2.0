@@ -16,6 +16,10 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { verifyAuthWithWorkbench } from '../../services/snsAuthEventService';
+import {
+  exchangeGoogleCode,
+  buildHospitalUserFromGoogle
+} from '../../services/googleAuthService';
 
 export const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -49,8 +53,60 @@ export const AuthCallbackPage = () => {
 
     const handleAuthCallback = async () => {
       try {
-        const portalParam = (searchParams.get('role') || 'doctor').toLowerCase();
+        let portalParam = (searchParams.get('role') || 'doctor').toLowerCase();
+        const stateParam = searchParams.get('state');
+        if (stateParam) {
+          try {
+            const parsed = JSON.parse(decodeURIComponent(stateParam));
+            if (parsed.role) portalParam = parsed.role.toLowerCase();
+          } catch (_) {}
+        }
         setTargetPortal(portalParam);
+
+        // Check for Google OAuth error parameter
+        const googleError = searchParams.get('error');
+        if (googleError) {
+          throw new Error(`Google OAuth error: ${googleError}`);
+        }
+
+        // Direct Google OAuth authorization code flow
+        const codeParam = searchParams.get('code');
+        if (codeParam) {
+          const googleUser = await exchangeGoogleCode(codeParam, `${window.location.origin}/auth/callback`);
+          const hospitalUser = buildHospitalUserFromGoogle(googleUser, portalParam);
+
+          const verifyResult = await verifyAuthWithWorkbench({
+            event_type: 'SIGN_IN',
+            provider: 'google',
+            email: hospitalUser.email,
+            role: portalParam,
+            user_id: hospitalUser.id,
+            full_name: hospitalUser.name,
+            registration_status: 'active',
+            approval_status: 'approved',
+            hospital_name: hospitalUser.hospital,
+            department: hospitalUser.department,
+            page: `${portalParam.toUpperCase()}_SIGN_IN`
+          });
+
+          if (!verifyResult || verifyResult.verified !== true || verifyResult.http_status_code !== 200) {
+            setStatusCode(verifyResult?.http_status_code || 500);
+            throw new Error(
+              verifyResult?.message || `Authentication verification failed with SNS Workbench [HTTP ${verifyResult?.http_status_code || 500}].`
+            );
+          }
+
+          setCurrentUser(hospitalUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('surgready_auth_token', 'true');
+          localStorage.setItem('surgready_hospital_session', JSON.stringify(hospitalUser));
+
+          setStatus('success');
+          setTimeout(() => {
+            navigate('/dashboard', { replace: true });
+          }, 800);
+          return;
+        }
 
         if (!isSupabaseConfigured()) {
           // Validate with Workbench even in staging

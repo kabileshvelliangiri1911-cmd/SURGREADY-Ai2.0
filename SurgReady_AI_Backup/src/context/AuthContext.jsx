@@ -3,6 +3,11 @@ import { storageService } from '../services/storageService';
 import { DEMO_USERS } from '../services/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { verifyAuthWithWorkbench } from '../services/snsAuthEventService';
+import {
+  requestGoogleTokenViaPopup,
+  redirectToGoogleOAuth,
+  buildHospitalUserFromGoogle
+} from '../services/googleAuthService';
 
 const AuthContext = createContext(null);
 
@@ -585,24 +590,82 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Continue with Google OAuth for all four portals
+   * Uses configured Google OAuth 2.0 Client credentials
    */
   const signInWithGoogle = async (portalRole) => {
     const cleanRole = (portalRole || 'doctor').toLowerCase();
+
+    // 1. If Supabase is fully configured with live keys, attempt Supabase OAuth first
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?role=${cleanRole}`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback?role=${cleanRole}`,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            }
           }
+        });
+        if (!error && data?.url) return data;
+      } catch (err) {
+        console.warn('[Supabase OAuth] Falling back to direct Google OAuth...', err);
+      }
+    }
+
+    // 2. Direct Google OAuth using user-configured client & secret
+    try {
+      const googleProfile = await requestGoogleTokenViaPopup();
+      if (googleProfile && googleProfile.email) {
+        const hospitalUser = buildHospitalUserFromGoogle(googleProfile, cleanRole);
+
+        // Verify authentication event with SNS AI Agent Workbench
+        const verifyResult = await verifyAuthWithWorkbench({
+          event_type: 'SIGN_IN',
+          provider: 'google',
+          email: hospitalUser.email,
+          role: cleanRole,
+          user_id: hospitalUser.id,
+          full_name: hospitalUser.name,
+          registration_status: 'active',
+          approval_status: 'approved',
+          hospital_name: hospitalUser.hospital,
+          department: hospitalUser.department,
+          page: `${cleanRole.toUpperCase()}_SIGN_IN`
+        });
+
+        if (!verifyResult || verifyResult.verified !== true || verifyResult.http_status_code !== 200) {
+          const errorObj = new Error(
+            verifyResult?.message || `Google sign-in verification failed with SNS Workbench [HTTP ${verifyResult?.http_status_code || 500}].`
+          );
+          errorObj.statusCode = verifyResult?.http_status_code || 500;
+          errorObj.canRetry = true;
+          throw errorObj;
         }
-      });
-      if (error) throw error;
-      return data;
-    } else {
-      throw new Error('Google OAuth is ready in code. To connect live Google login, please configure your Supabase Google OAuth credentials in Supabase Dashboard.');
+
+        // Persist authenticated user session
+        setCurrentUser(hospitalUser);
+        storageService.setCurrentUser(hospitalUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('surgready_auth_token', 'true');
+        localStorage.setItem('surgready_hospital_session', JSON.stringify(hospitalUser));
+        return hospitalUser;
+      }
+      return null;
+    } catch (popupErr) {
+      console.warn('[Google Auth] Popup encounter notice:', popupErr);
+      if (
+        popupErr.message &&
+        (popupErr.message.includes('closed') ||
+         popupErr.message.includes('cancel') ||
+         popupErr.message.includes('popup_closed_by_user'))
+      ) {
+        throw new Error('Google Sign-In was cancelled.');
+      }
+      // If popup was blocked or failed to initialize, redirect browser to Google OAuth 2.0 endpoint
+      redirectToGoogleOAuth(cleanRole);
+      return null;
     }
   };
 

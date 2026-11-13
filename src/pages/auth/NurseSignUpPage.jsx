@@ -131,7 +131,10 @@ export const NurseSignUpPage = () => {
     try {
       setIsGoogleLoading(true);
       setErrorMessage('');
-      await signInWithGoogle('nurse');
+      const user = await signInWithGoogle('nurse');
+      if (user) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setErrorMessage(err.message || 'Google sign-up failed. Please use standard email registration.');
     } finally {

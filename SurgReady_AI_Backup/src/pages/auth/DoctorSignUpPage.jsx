@@ -133,7 +133,10 @@ export const DoctorSignUpPage = () => {
     try {
       setIsGoogleLoading(true);
       setErrorMessage('');
-      await signInWithGoogle('doctor');
+      const user = await signInWithGoogle('doctor');
+      if (user) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setErrorMessage(err.message || 'Google sign-up failed. Please use standard email registration.');
     } finally {

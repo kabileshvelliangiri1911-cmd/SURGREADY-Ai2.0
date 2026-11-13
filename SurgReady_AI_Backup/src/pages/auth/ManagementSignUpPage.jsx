@@ -138,7 +138,10 @@ export const ManagementSignUpPage = () => {
     try {
       setIsGoogleLoading(true);
       setErrorMessage('');
-      await signInWithGoogle('management');
+      const user = await signInWithGoogle('management');
+      if (user) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setErrorMessage(err.message || 'Google sign-up failed. Please use standard email registration.');
     } finally {
